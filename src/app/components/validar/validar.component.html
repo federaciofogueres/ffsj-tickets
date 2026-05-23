@@ -1,0 +1,59 @@
+<main class="validator-shell">
+  <section class="validator-header">
+    <div>
+      <p class="eyebrow">Validacion de entradas</p>
+      <h1>Escaner de acceso</h1>
+    </div>
+    <label>
+      <span>Año</span>
+      <input type="text" [(ngModel)]="year" />
+    </label>
+  </section>
+
+  <section class="validator-grid">
+    <article class="panel">
+      <div class="panel-header">
+        <h2>Camara</h2>
+        <button type="button" (click)="scannerOpen = !scannerOpen">{{ scannerOpen ? 'Cerrar' : 'Abrir' }}</button>
+      </div>
+
+      @if (scannerOpen) {
+      <zxing-scanner [formats]="formats" (scanSuccess)="onScan($event)"></zxing-scanner>
+      } @else {
+      <p class="empty">Camara cerrada.</p>
+      }
+    </article>
+
+    <article class="panel">
+      <h2>Validacion manual</h2>
+      <label>
+        <span>Codigo o URL</span>
+        <input type="text" [(ngModel)]="code" (keyup.enter)="validate()" />
+      </label>
+      <button type="button" class="primary" [disabled]="loading" (click)="validate()">{{ loading ? 'Validando...' : 'Validar entrada' }}</button>
+
+      @if (result) {
+      <section class="result" [ngClass]="'result-' + result.status">
+        <strong>{{ result.message }}</strong>
+        <span>{{ result.codigo }}</span>
+        @if (result.ticket) {
+        <dl>
+          <div>
+            <dt>Activada</dt>
+            <dd>{{ result.ticket.activada ? 'Si' : 'No' }}</dd>
+          </div>
+          <div>
+            <dt>Validada</dt>
+            <dd>{{ result.ticket.validatedAt || 'No' }}</dd>
+          </div>
+          <div>
+            <dt>Lote</dt>
+            <dd>{{ result.ticket.batchId || 'Manual' }}</dd>
+          </div>
+        </dl>
+        }
+      </section>
+      }
+    </article>
+  </section>
+</main>

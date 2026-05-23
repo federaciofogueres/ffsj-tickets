@@ -1,0 +1,164 @@
+.validator-shell {
+  display: grid;
+  gap: 1.35rem;
+  min-height: 100vh;
+  padding: 1.4rem 1.8rem;
+}
+
+.validator-header,
+.panel {
+  background: #ffffff;
+  border: 1px solid #dfe5ee;
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.08);
+}
+
+.validator-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  min-height: 138px;
+  padding: 1.55rem 1.65rem;
+}
+
+.validator-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+}
+
+.panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.panel-header,
+dl div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+zxing-scanner {
+  border-radius: 18px;
+  display: block;
+  min-height: 430px;
+  overflow: hidden;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 3vw, 2.4rem);
+  line-height: 1;
+  margin-top: 0.35rem;
+}
+
+h2 {
+  font-size: 1.45rem;
+}
+
+.eyebrow {
+  color: #e00000;
+  font-size: 0.8rem;
+  font-weight: 1000;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+label {
+  display: grid;
+  gap: 0.55rem;
+}
+
+label span,
+dt {
+  color: #536070;
+  font-weight: 1000;
+}
+
+input {
+  background: #ffffff;
+  border: 1px solid #dfe5ee;
+  border-radius: 18px;
+  font: inherit;
+  min-height: 54px;
+  padding: 0 1rem;
+}
+
+button {
+  background: #f7f8fb;
+  border: 0;
+  border-radius: 999px;
+  color: #05070d;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 1000;
+  min-height: 48px;
+  padding: 0 1.1rem;
+}
+
+.primary {
+  background: #e00000;
+  color: #ffffff;
+}
+
+.result {
+  border-radius: 18px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.result strong {
+  font-size: 1.15rem;
+}
+
+.result-valid {
+  background: #dcf7e7;
+  color: #047857;
+}
+
+.result-invalid,
+.result-blocked,
+.result-used {
+  background: #fde6e6;
+  color: #b91c1c;
+}
+
+.result-inactive {
+  background: #ffead8;
+  color: #9a3412;
+}
+
+dl {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+dd {
+  margin: 0;
+}
+
+@media (max-width: 860px) {
+  .validator-shell {
+    padding: 0.75rem;
+  }
+
+  .validator-header,
+  .validator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .validator-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
+  }
+}

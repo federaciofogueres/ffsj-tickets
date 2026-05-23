@@ -1,0 +1,290 @@
+<section class="admin-shell">
+  <aside class="backoffice-sidebar" aria-label="Navegacion del backoffice">
+    <div class="sidebar-brand">
+      <span class="brand-mark"><i class="bi bi-fire"></i></span>
+      <span>
+        <strong>FFSJ<br>Tickets</strong>
+        <small>{{ year }}</small>
+      </span>
+    </div>
+
+    <div class="section-switch">
+      <button type="button" class="switch-pill switch-pill-active">
+        <i class="bi bi-ticket-perforated"></i>
+        <span>Tickets</span>
+      </button>
+      <a class="switch-pill" routerLink="/validar">
+        <i class="bi bi-qr-code-scan"></i>
+        <span>Validar</span>
+      </a>
+      <button type="button" class="switch-pill muted-pill">
+        <i class="bi bi-check2-square"></i>
+        <span>Votos</span>
+      </button>
+      <button type="button" class="switch-pill muted-pill">
+        <i class="bi bi-activity"></i>
+        <span>Tracking</span>
+      </button>
+      <button type="button" class="switch-pill muted-pill">
+        <i class="bi bi-shield-lock"></i>
+        <span>Modulos</span>
+      </button>
+    </div>
+
+    <div class="sidebar-version">
+      <strong>FFSJ Tickets {{ year }}</strong>
+      <span>Version 1.0.0</span>
+    </div>
+  </aside>
+
+  <main class="backoffice-main">
+    <header class="hero-card">
+      <div>
+        <p class="eyebrow">Backoffice</p>
+        <h1>Hola, Administrador</h1>
+        <p class="hero-copy">Panel para operar la gestion oficial de entradas FFSJ {{ year }}.</p>
+      </div>
+
+      <div class="hero-actions">
+        <label class="date-chip">
+          <i class="bi bi-calendar3"></i>
+          <input type="text" [(ngModel)]="year" (change)="refresh()" aria-label="Ano del backoffice">
+          <i class="bi bi-chevron-down"></i>
+        </label>
+        <span class="admin-avatar"><i class="bi bi-person-fill"></i></span>
+      </div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <span>Total entradas</span>
+        <strong>{{ stats.totalEntradas }}</strong>
+        <i class="stat-icon stat-icon-red bi bi-ticket-perforated"></i>
+      </article>
+      <article class="stat-card">
+        <span>Entradas activadas</span>
+        <strong>{{ stats.totalActivadas }}</strong>
+        <i class="stat-icon stat-icon-orange bi bi-check-circle"></i>
+      </article>
+      <article class="stat-card">
+        <span>Entradas usadas</span>
+        <strong>{{ stats.totalValidadas }}</strong>
+        <i class="stat-icon stat-icon-green bi bi-check-lg"></i>
+      </article>
+      <article class="stat-card">
+        <span>Entradas bloqueadas</span>
+        <strong>{{ stats.totalBloqueadas }}</strong>
+        <i class="stat-icon stat-icon-blue bi bi-lock-fill"></i>
+      </article>
+      <article class="stat-card">
+        <span>Lotes registrados</span>
+        <strong>{{ stats.totalLotes }}</strong>
+        <i class="stat-icon stat-icon-green bi bi-check-circle"></i>
+      </article>
+    </section>
+
+    @if (message) {
+    <p class="message">{{ message }}</p>
+    }
+
+    <section class="section-tabs" aria-label="Gestion de tickets">
+      <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'generate'" (click)="setTab('generate')">
+        Generacion de tickets
+      </button>
+      <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'tickets'" (click)="setTab('tickets')">
+        Listado de tickets
+      </button>
+      <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'batches'" (click)="setTab('batches')">
+        Listado de lotes
+      </button>
+      <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'activate'" (click)="setTab('activate')">
+        Activacion de tickets
+      </button>
+    </section>
+
+    @if (tab === 'generate') {
+    <section class="admin-layout">
+      <article class="panel-card">
+        <p class="panel-kicker">Crear ticket</p>
+        <h2>Alta manual</h2>
+        <label class="field">
+          <span>Codigo</span>
+          <input type="text" [(ngModel)]="ticketForm.codigo" placeholder="FFSJ-0001">
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="ticketForm.bloqueada">
+          <span>Crear ticket bloqueado</span>
+        </label>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="createTicket()">Crear ticket</button>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Lote rapido</p>
+            <h2>Generar tickets</h2>
+          </div>
+          <button type="button" class="ghost-btn" (click)="exportCsv()">Exportar CSV</button>
+        </div>
+        <div class="two-columns">
+          <label class="field">
+            <span>Cantidad</span>
+            <input type="number" [(ngModel)]="batchForm.quantity" min="1" max="5000">
+          </label>
+          <label class="field">
+            <span>Prefijo</span>
+            <input type="text" [(ngModel)]="batchForm.prefix" placeholder="FFSJ">
+          </label>
+        </div>
+        <button type="button" class="secondary-btn compact-action" [disabled]="loading" (click)="generateBatch()">Generar lote</button>
+        <button type="button" class="primary-btn stacked-action" [disabled]="loading" (click)="generateBatch()">
+          Generar lote con entradas fisicas
+        </button>
+      </article>
+
+      <article class="panel-card">
+        <p class="panel-kicker">Envio</p>
+        <h2>Enviar por email</h2>
+        <label class="field">
+          <span>Email cliente</span>
+          <input type="email" [(ngModel)]="emailForm.email" placeholder="cliente@email.com">
+        </label>
+        <div class="two-columns">
+          <label class="field">
+            <span>Codigo ticket</span>
+            <input type="text" [(ngModel)]="emailForm.code" placeholder="FFSJ-0001">
+          </label>
+          <label class="field">
+            <span>ID lote</span>
+            <input type="text" [(ngModel)]="emailForm.batchId" placeholder="BATCH-...">
+          </label>
+        </div>
+        <p class="helper-copy">Indica un ticket concreto o un lote completo. Se enviara un PDF con los QR adjuntos.</p>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="sendEmail()">Enviar PDF</button>
+      </article>
+
+      <article class="panel-card">
+        <p class="panel-kicker">Entradas fisicas</p>
+        <h2>Plantilla PDF</h2>
+        <p class="helper-copy">El PDF se genera con el diseño oficial de entradas FFSJ y QR de validacion.</p>
+        <button type="button" class="secondary-btn compact-action" (click)="downloadPdf()">Descargar todos los tickets en PDF</button>
+      </article>
+    </section>
+    } @else if (tab === 'activate') {
+    <section class="admin-layout">
+      <article class="panel-card">
+        <p class="panel-kicker">Acceso</p>
+        <h2>Activar por codigo</h2>
+        <label class="field">
+          <span>Ticket o lote</span>
+          <input type="text" [(ngModel)]="activationForm.code" placeholder="FFSJ-0001 o ID de lote">
+        </label>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="activateFromForm()">Activar</button>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">QR acceso</p>
+            <h2>Leer codigo QR</h2>
+          </div>
+          <a class="ghost-link" routerLink="/validar">Abrir camara</a>
+        </div>
+        <p class="helper-copy">Abre la camara del dispositivo de acceso y escanea el QR del ticket para validarlo.</p>
+      </article>
+    </section>
+    } @else {
+    <section class="panel-card records-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Lectura</p>
+          <h2>{{ tab === 'batches' ? 'Lotes registrados' : 'Tickets registrados' }}</h2>
+        </div>
+        <button type="button" class="ghost-btn" (click)="loadTickets(true)">Refrescar</button>
+      </div>
+
+      <div class="records-toolbar">
+        <label class="field compact-field">
+          <span>Buscar</span>
+          <input type="search" [(ngModel)]="search" (input)="currentPage = 1; loadTickets(true)"
+            [placeholder]="tab === 'batches' ? 'Buscar lote' : 'Buscar ticket'">
+        </label>
+        @if (tab === 'tickets') {
+        <label class="field compact-field">
+          <span>Estado</span>
+          <select [(ngModel)]="status" (change)="currentPage = 1; loadTickets(true)">
+            <option value="all">Todos</option>
+            <option value="inactive">Sin activar</option>
+            <option value="activated">Activados</option>
+            <option value="validated">Validados</option>
+            <option value="blocked">Bloqueados</option>
+          </select>
+        </label>
+        }
+        <label class="field compact-field">
+          <span>Ver</span>
+          <select [(ngModel)]="pageSize" (change)="currentPage = 1">
+            <option [ngValue]="4">4</option>
+            <option [ngValue]="8">8</option>
+            <option [ngValue]="20">20</option>
+          </select>
+        </label>
+      </div>
+
+      <p class="records-summary">
+        {{ tab === 'batches' ? batchSummaries.length + ' lotes encontrados' : filteredTickets.length + ' tickets encontrados' }}
+      </p>
+
+      @if (tab === 'tickets') {
+      <div class="records-list">
+        @for (ticket of visibleTickets; track ticket.codigo) {
+        <article class="record-card ticket-record-card">
+          <div class="record-topline">
+            <h3>{{ ticket.codigo }}</h3>
+            <span class="status-chip" [class.status-chip-ok]="ticket.usada">{{ ticket.usada ? 'Validada' : 'Pendiente' }}</span>
+          </div>
+          <dl class="record-meta">
+            <div><dt>Lote</dt><dd>{{ ticket.batchId || 'Manual' }}</dd></div>
+            <div><dt>Creado</dt><dd>{{ ticket.createdAt | date:'short' }}</dd></div>
+          </dl>
+          <div class="actions-row">
+            <label class="checkbox-row"><input type="checkbox" [(ngModel)]="ticket.activada"><span>Activada</span></label>
+            <label class="checkbox-row"><input type="checkbox" [(ngModel)]="ticket.bloqueada"><span>Bloqueada</span></label>
+            <button type="button" class="ghost-btn" (click)="saveTicket(ticket)">Guardar</button>
+            <button type="button" class="ghost-btn" (click)="downloadPdf(ticket)">PDF</button>
+            <button type="button" class="danger-btn" [disabled]="ticket.usada" (click)="deleteTicket(ticket)">Eliminar</button>
+          </div>
+        </article>
+        }
+      </div>
+      } @else {
+      <div class="records-list">
+        @for (batch of visibleBatches; track batch.batchId) {
+        <article class="record-card ticket-record-card">
+          <div class="record-topline">
+            <h3>{{ batch.batchId }}</h3>
+            <span class="status-chip status-chip-blue">{{ batch.total }} tickets</span>
+          </div>
+          <p class="helper-copy">{{ batch.active }} activas · {{ batch.validated }} validadas</p>
+          <div class="actions-row">
+            <button type="button" class="secondary-btn" (click)="activateBatch(batch.batchId)">Activar lote</button>
+            <button type="button" class="ghost-btn" (click)="downloadBatchPdf(batch.batchId)">PDF</button>
+          </div>
+        </article>
+        }
+      </div>
+      }
+
+      <div class="records-pagination">
+        <button type="button" class="ghost-btn" [disabled]="currentPage === 1" (click)="previousPage()">Anterior</button>
+        <span>Pagina {{ currentPage }} / {{ totalPages }}</span>
+        <button type="button" class="ghost-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">Siguiente</button>
+      </div>
+
+      @if (cursor) {
+      <button type="button" class="secondary-btn load-more" (click)="loadTickets()">Cargar mas tickets</button>
+      }
+    </section>
+    }
+  </main>
+</section>

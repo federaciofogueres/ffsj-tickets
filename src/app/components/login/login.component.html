@@ -1,0 +1,33 @@
+<main class="login-shell">
+  <section class="login-card app-card">
+    <img src="assets/img/logo-intranet.png" alt="Federacio de Fogueres de Sant Joan">
+    <span class="login-kicker">Tickets APP 2026</span>
+    <h1>Acceso a administracion</h1>
+    <p>Panel privado para gestionar entradas y validar accesos.</p>
+
+    @if (loading) {
+    <div class="loading-box">Validando credenciales...</div>
+    } @else {
+    <div class="login-form">
+      <label class="app-field">
+        <span>Usuario</span>
+        <input type="text" id="username" [formControl]="username" autocomplete="username">
+      </label>
+
+      <label class="app-field">
+        <span>Contrasena</span>
+        <input type="password" id="password" [formControl]="password" autocomplete="current-password">
+      </label>
+
+      @if (error) {
+      <p class="login-error">{{ error }}</p>
+      }
+
+      <button class="app-primary-button" type="button" (click)="login()">
+        <i class="bi bi-box-arrow-in-right"></i>
+        Iniciar sesion
+      </button>
+    </div>
+    }
+  </section>
+</main>
