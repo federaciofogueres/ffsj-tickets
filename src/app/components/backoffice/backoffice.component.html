@@ -272,8 +272,7 @@
               </label>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
-              <button type="button" class="danger-btn" [disabled]="ticket.usada"
-                (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
+              <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
             </div>
           </div>
           }
@@ -306,8 +305,7 @@
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
                 PDF
               </button>
-              <button type="button" class="danger-btn" [disabled]="batch.validated > 0"
-                (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
+              <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
                 Eliminar lote
               </button>
             </div>
