@@ -44,7 +44,7 @@
           </div>
           <div>
             <dt>Validada</dt>
-            <dd>{{ result.ticket.validatedAt || 'No' }}</dd>
+            <dd>{{ result.ticket.validatedAt ? (result.ticket.validatedAt | date:'medium') : 'No' }}</dd>
           </div>
           <div>
             <dt>Lote</dt>

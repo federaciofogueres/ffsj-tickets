@@ -232,44 +232,87 @@
       </div>
 
       <p class="records-summary">
-        {{ tab === 'batches' ? batchSummaries.length + ' lotes encontrados' : filteredTickets.length + ' tickets encontrados' }}
+        @if (listLoading) {
+          Cargando registros...
+        } @else {
+          {{ tab === 'batches' ? batchSummaries.length + ' lotes encontrados' : filteredTickets.length + ' tickets encontrados' }}
+        }
       </p>
 
       @if (tab === 'tickets') {
       <div class="records-list">
         @for (ticket of visibleTickets; track ticket.codigo) {
-        <article class="record-card ticket-record-card">
-          <div class="record-topline">
-            <h3>{{ ticket.codigo }}</h3>
-            <span class="status-chip" [class.status-chip-ok]="ticket.usada">{{ ticket.usada ? 'Validada' : 'Pendiente' }}</span>
+        <article class="record-card ticket-record-card" [class.record-card-expanded]="expandedTicketCode === ticket.codigo">
+          <button type="button" class="record-summary-button" (click)="toggleTicket(ticket)"
+            [attr.aria-expanded]="expandedTicketCode === ticket.codigo">
+            <span class="record-summary-main">
+              <span class="record-summary-id">{{ ticket.codigo }}</span>
+            </span>
+            <i class="bi bi-chevron-down record-chevron" aria-hidden="true"></i>
+          </button>
+
+          @if (expandedTicketCode === ticket.codigo) {
+          <div class="record-expanded">
+            <dl class="record-meta">
+              <div><dt>Estado</dt><dd><span class="status-chip" [ngClass]="ticketStatusClass(ticket)">{{ ticketStatusLabel(ticket) }}</span></dd></div>
+              <div><dt>Lote</dt><dd>{{ ticket.batchId || 'Manual' }}</dd></div>
+              <div><dt>Creado</dt><dd>{{ ticket.createdAt | date:'short' }}</dd></div>
+              <div><dt>Activado</dt><dd>{{ ticket.activadaAt ? (ticket.activadaAt | date:'short') : 'No' }}</dd></div>
+              <div><dt>Validado</dt><dd>{{ ticket.usadaAt ? (ticket.usadaAt | date:'short') : 'No' }}</dd></div>
+              <div><dt>Tipo</dt><dd>{{ ticket.fisica ? 'Fisica' : 'Digital' }}</dd></div>
+            </dl>
+            <div class="actions-row">
+              <label class="checkbox-row" (click)="$event.stopPropagation()">
+                <input type="checkbox" [(ngModel)]="ticket.activada">
+                <span>Activada</span>
+              </label>
+              <label class="checkbox-row" (click)="$event.stopPropagation()">
+                <input type="checkbox" [(ngModel)]="ticket.bloqueada">
+                <span>Bloqueada</span>
+              </label>
+              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
+              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
+              <button type="button" class="danger-btn" [disabled]="ticket.usada"
+                (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
+            </div>
           </div>
-          <dl class="record-meta">
-            <div><dt>Lote</dt><dd>{{ ticket.batchId || 'Manual' }}</dd></div>
-            <div><dt>Creado</dt><dd>{{ ticket.createdAt | date:'short' }}</dd></div>
-          </dl>
-          <div class="actions-row">
-            <label class="checkbox-row"><input type="checkbox" [(ngModel)]="ticket.activada"><span>Activada</span></label>
-            <label class="checkbox-row"><input type="checkbox" [(ngModel)]="ticket.bloqueada"><span>Bloqueada</span></label>
-            <button type="button" class="ghost-btn" (click)="saveTicket(ticket)">Guardar</button>
-            <button type="button" class="ghost-btn" (click)="downloadPdf(ticket)">PDF</button>
-            <button type="button" class="danger-btn" [disabled]="ticket.usada" (click)="deleteTicket(ticket)">Eliminar</button>
-          </div>
+          }
         </article>
         }
       </div>
       } @else {
       <div class="records-list">
         @for (batch of visibleBatches; track batch.batchId) {
-        <article class="record-card ticket-record-card">
-          <div class="record-topline">
-            <h3>{{ batch.batchId }}</h3>
-            <span class="status-chip status-chip-blue">{{ batch.total }} tickets</span>
+        <article class="record-card ticket-record-card" [class.record-card-expanded]="expandedBatchId === batch.batchId">
+          <button type="button" class="record-summary-button" (click)="toggleBatch(batch.batchId)"
+            [attr.aria-expanded]="expandedBatchId === batch.batchId">
+            <span class="record-summary-main">
+              <span class="record-summary-id">{{ batch.batchId }}</span>
+            </span>
+            <i class="bi bi-chevron-down record-chevron" aria-hidden="true"></i>
+          </button>
+
+          @if (expandedBatchId === batch.batchId) {
+          <div class="record-expanded">
+            <dl class="record-meta">
+              <div><dt>Total</dt><dd>{{ batch.total }}</dd></div>
+              <div><dt>Activas</dt><dd>{{ batch.active }}</dd></div>
+              <div><dt>Validadas</dt><dd>{{ batch.validated }}</dd></div>
+            </dl>
+            <div class="actions-row">
+              <button type="button" class="secondary-btn" (click)="$event.stopPropagation(); activateBatch(batch.batchId)">
+                Activar lote
+              </button>
+              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
+                PDF
+              </button>
+              <button type="button" class="danger-btn" [disabled]="batch.validated > 0"
+                (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
+                Eliminar lote
+              </button>
+            </div>
           </div>
-          <p class="helper-copy">{{ batch.active }} activas · {{ batch.validated }} validadas</p>
-          <div class="actions-row">
-            <button type="button" class="secondary-btn" (click)="activateBatch(batch.batchId)">Activar lote</button>
-            <button type="button" class="ghost-btn" (click)="downloadBatchPdf(batch.batchId)">PDF</button>
-          </div>
+          }
         </article>
         }
       </div>

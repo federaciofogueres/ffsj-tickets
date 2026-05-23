@@ -417,7 +417,7 @@
 .records-list {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
 }
 
 .record-card {
@@ -425,16 +425,64 @@
   border: 1px solid #bfc5cf;
   border-left: 8px solid #c7cbd2;
   border-radius: 18px;
+  cursor: pointer;
   display: grid;
   gap: 0.8rem;
+  min-width: 0;
   min-height: 96px;
+  overflow: hidden;
   padding: 1rem;
 }
 
+.record-card-expanded {
+  background: linear-gradient(90deg, #eef5ff 0%, #ffffff 58%);
+  border-color: #4f86ff;
+  border-left-color: #4f86ff;
+}
+
+.record-summary-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 0.75rem;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.record-summary-main {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.record-summary-id,
 .record-topline h3 {
   font-size: 1rem;
+  font-weight: 1000;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.record-chevron {
+  color: #6b7280;
+  flex: 0 0 auto;
+  transition: transform 0.16s ease;
+}
+
+.record-card-expanded .record-chevron {
+  transform: rotate(180deg);
+}
+
+.record-expanded {
+  display: grid;
+  gap: 0.9rem;
 }
 
 .status-chip {
@@ -455,6 +503,11 @@
 .status-chip-blue {
   background: #e6eefc;
   color: #2563eb;
+}
+
+.status-chip-blocked {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .record-meta {
@@ -478,6 +531,27 @@
 
 .record-meta dd {
   margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.record-meta .status-chip {
+  display: inline-flex;
+}
+
+.actions-row {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.actions-row .primary-btn,
+.actions-row .secondary-btn,
+.actions-row .ghost-btn,
+.actions-row .danger-btn {
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .records-pagination {

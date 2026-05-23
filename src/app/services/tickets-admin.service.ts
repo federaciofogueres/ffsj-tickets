@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
 import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketValidationResult } from '../models/ticket.model';
@@ -43,10 +44,10 @@ export class TicketsAdminService {
   }
 
   listTickets(options: { year: string; limit: number; cursor?: string | null; status?: string; search?: string; mode?: 'single' | 'batch' }): Observable<ApiResponse<PaginatedResponse<Ticket>>> {
-    return this.http.get<ApiResponse<PaginatedResponse<Ticket>>>(`${this.baseUrl}/tickets`, {
+    return this.http.get<unknown>(`${this.baseUrl}/tickets`, {
       headers: this.headers,
       params: this.params(options.year, options)
-    });
+    }).pipe(map((response) => this.normalizeListResponse(response)));
   }
 
   createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean }, year: string): Observable<ApiResponse<Ticket>> {
@@ -59,6 +60,10 @@ export class TicketsAdminService {
 
   deleteTicket(codigo: string, year: string): Observable<void> {
     return this.http.delete<void>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, { headers: this.headers, params: this.params(year) });
+  }
+
+  deleteBatch(batchId: string, year: string): Observable<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>> {
+    return this.http.delete<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}`, { headers: this.headers, params: this.params(year) });
   }
 
   generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean }, year: string): Observable<ApiResponse<TicketBatchResult>> {
@@ -83,5 +88,36 @@ export class TicketsAdminService {
 
   downloadPdf(year: string, target?: { code?: string; batchId?: string }): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/tickets/pdf`, { headers: this.headers, params: this.params(year, target), responseType: 'blob' });
+  }
+
+  private normalizeListResponse(response: unknown): ApiResponse<PaginatedResponse<Ticket>> {
+    const payload = this.findListPayload(response);
+    return {
+      ok: true,
+      data: {
+        items: payload.items,
+        nextCursor: payload.nextCursor
+      }
+    };
+  }
+
+  private findListPayload(value: unknown): PaginatedResponse<Ticket> {
+    if (Array.isArray(value)) {
+      return { items: value as Ticket[], nextCursor: null };
+    }
+
+    if (!value || typeof value !== 'object') {
+      return { items: [], nextCursor: null };
+    }
+
+    const candidate = value as { items?: unknown; nextCursor?: unknown; data?: unknown };
+    if (Array.isArray(candidate.items)) {
+      return {
+        items: candidate.items as Ticket[],
+        nextCursor: typeof candidate.nextCursor === 'string' ? candidate.nextCursor : null
+      };
+    }
+
+    return this.findListPayload(candidate.data);
   }
 }

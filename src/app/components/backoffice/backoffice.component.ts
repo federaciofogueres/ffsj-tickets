@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { saveAs } from 'file-saver';
@@ -18,11 +18,14 @@ type Tab = 'generate' | 'tickets' | 'batches' | 'activate';
 })
 export class BackofficeComponent implements OnInit {
   private readonly ticketsAdminService = inject(TicketsAdminService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly ngZone = inject(NgZone);
 
   protected year = String(new Date().getFullYear());
   protected tab: Tab = 'generate';
   protected loading = false;
   protected message = '';
+  protected listLoading = false;
   protected stats: AdminStats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
   protected tickets: Ticket[] = [];
   protected cursor: string | null = null;
@@ -30,6 +33,8 @@ export class BackofficeComponent implements OnInit {
   protected search = '';
   protected pageSize = 4;
   protected currentPage = 1;
+  protected expandedTicketCode: string | null = null;
+  protected expandedBatchId: string | null = null;
 
   protected ticketForm = { codigo: '', activada: true, bloqueada: false };
   protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true };
@@ -48,6 +53,8 @@ export class BackofficeComponent implements OnInit {
   protected setTab(tab: Tab): void {
     this.tab = tab;
     this.currentPage = 1;
+    this.expandedTicketCode = null;
+    this.expandedBatchId = null;
     this.loadTickets(true);
   }
 
@@ -103,7 +110,9 @@ export class BackofficeComponent implements OnInit {
   protected loadStats(): void {
     this.ticketsAdminService.stats(this.year).subscribe({
       next: ({ data }) => {
-        this.stats = data;
+        this.applyViewUpdate(() => {
+          this.stats = data;
+        });
       },
       error: () => {
         this.setMessage('No se han podido cargar las estadisticas.');
@@ -118,6 +127,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     const mode = this.tab === 'batches' ? 'batch' : undefined;
+    this.listLoading = true;
     this.ticketsAdminService.listTickets({
       year: this.year,
       limit: 50,
@@ -126,11 +136,20 @@ export class BackofficeComponent implements OnInit {
       search: this.search,
       mode
     }).subscribe({
-      next: ({ data }) => {
-        this.tickets = reset ? data.items : [...this.tickets, ...data.items];
-        this.cursor = data.nextCursor;
+      next: (response) => {
+        this.applyViewUpdate(() => {
+          this.tickets = reset ? response.data.items : [...this.tickets, ...response.data.items];
+          this.cursor = response.data.nextCursor;
+          this.currentPage = Math.min(this.currentPage, this.totalPages);
+          this.listLoading = false;
+        });
       },
-      error: () => this.setMessage('No se han podido cargar las entradas.')
+      error: () => {
+        this.applyViewUpdate(() => {
+          this.listLoading = false;
+          this.setMessage('No se han podido cargar las entradas.');
+        });
+      }
     });
   }
 
@@ -156,6 +175,22 @@ export class BackofficeComponent implements OnInit {
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido eliminar la entrada.')
+    });
+  }
+
+  protected deleteBatch(batchId: string): void {
+    if (!confirm(`Eliminar lote ${batchId}?`)) {
+      return;
+    }
+
+    this.loading = true;
+    this.ticketsAdminService.deleteBatch(batchId, this.year).subscribe({
+      next: ({ data }) => {
+        this.expandedBatchId = null;
+        this.setMessage(`Lote eliminado: ${data.deleted} entradas.`);
+        this.refresh();
+      },
+      error: (error) => this.handleError(error, 'No se ha podido eliminar el lote.')
     });
   }
 
@@ -239,6 +274,40 @@ export class BackofficeComponent implements OnInit {
     return Math.max(1, Math.ceil(total / this.pageSize));
   }
 
+  protected toggleTicket(ticket: Ticket): void {
+    this.expandedTicketCode = this.expandedTicketCode === ticket.codigo ? null : ticket.codigo;
+  }
+
+  protected toggleBatch(batchId: string): void {
+    this.expandedBatchId = this.expandedBatchId === batchId ? null : batchId;
+  }
+
+  protected ticketStatusLabel(ticket: Ticket): string {
+    if (ticket.usada) {
+      return 'Validada';
+    }
+    if (ticket.bloqueada) {
+      return 'Bloqueada';
+    }
+    if (ticket.activada) {
+      return 'Activada';
+    }
+    return 'Pendiente';
+  }
+
+  protected ticketStatusClass(ticket: Ticket): string {
+    if (ticket.usada) {
+      return 'status-chip-ok';
+    }
+    if (ticket.bloqueada) {
+      return 'status-chip-blocked';
+    }
+    if (ticket.activada) {
+      return 'status-chip-blue';
+    }
+    return '';
+  }
+
   protected nextPage(): void {
     this.currentPage = Math.min(this.totalPages, this.currentPage + 1);
   }
@@ -252,8 +321,16 @@ export class BackofficeComponent implements OnInit {
     this.setMessage(response.error?.error?.message || fallback);
   }
 
+  private applyViewUpdate(update: () => void): void {
+    this.ngZone.run(() => {
+      update();
+      this.changeDetectorRef.detectChanges();
+    });
+  }
+
   private setMessage(message: string): void {
     this.message = message;
     this.loading = false;
+    this.changeDetectorRef.detectChanges();
   }
 }
