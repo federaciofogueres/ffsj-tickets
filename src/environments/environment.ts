@@ -1,6 +1,6 @@
 export const environment = {
-  production: false,
-  apiBaseUrl: 'http://localhost:4100',
-  adminApiBaseUrl: 'http://localhost:4100/api/admin',
+  production: true,
+  apiBaseUrl: 'https://ffsj-tickets-api.azurewebsites.net',
+  adminApiBaseUrl: 'https://ffsj-tickets-api.azurewebsites.net/api/admin',
   adminApiKey: ''
 };
