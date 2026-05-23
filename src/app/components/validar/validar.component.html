@@ -31,29 +31,55 @@
         <input type="text" [(ngModel)]="code" (keyup.enter)="validate()" />
       </label>
       <button type="button" class="primary" [disabled]="loading" (click)="validate()">{{ loading ? 'Validando...' : 'Validar entrada' }}</button>
-
-      @if (result) {
-      <section class="result" [ngClass]="'result-' + result.status">
-        <strong>{{ result.message }}</strong>
-        <span>{{ result.codigo }}</span>
-        @if (result.ticket) {
-        <dl>
-          <div>
-            <dt>Activada</dt>
-            <dd>{{ result.ticket.activada ? 'Si' : 'No' }}</dd>
-          </div>
-          <div>
-            <dt>Validada</dt>
-            <dd>{{ result.ticket.validatedAt ? (result.ticket.validatedAt | date:'medium') : 'No' }}</dd>
-          </div>
-          <div>
-            <dt>Lote</dt>
-            <dd>{{ result.ticket.batchId || 'Manual' }}</dd>
-          </div>
-        </dl>
-        }
-      </section>
-      }
     </article>
   </section>
+
+  @if (result) {
+  <section class="result-overlay" [ngClass]="'result-overlay-' + resultTone" role="status" aria-live="assertive">
+    <div class="result-card">
+      <p class="result-kicker">{{ result.summary?.type === 'batch' ? 'Lote' : 'Entrada' }}</p>
+      <h2>{{ resultTitle }}</h2>
+      <strong>{{ result.message }}</strong>
+      <dl>
+        <div>
+          <dt>Codigo QR</dt>
+          <dd>{{ result.codigo || 'Sin codigo' }}</dd>
+        </div>
+        @if (result.summary) {
+        <div>
+          <dt>Total</dt>
+          <dd>{{ result.summary.total }}</dd>
+        </div>
+        <div>
+          <dt>Validadas ahora</dt>
+          <dd>{{ result.summary.validatedNow }}</dd>
+        </div>
+        <div>
+          <dt>Ya validadas</dt>
+          <dd>{{ result.summary.alreadyValidated }}</dd>
+        </div>
+        }
+        @if (activationTime) {
+        <div>
+          <dt>Hora de activacion</dt>
+          <dd>{{ activationTime | date:'medium' }}</dd>
+        </div>
+        }
+        @if (validationTime) {
+        <div>
+          <dt>Hora de validacion</dt>
+          <dd>{{ validationTime | date:'medium' }}</dd>
+        </div>
+        }
+        @if (result.ticket) {
+        <div>
+          <dt>Lote</dt>
+          <dd>{{ result.ticket.batchId || 'Manual' }}</dd>
+        </div>
+        }
+      </dl>
+      <button type="button" (click)="clearResult()">Cerrar</button>
+    </div>
+  </section>
+  }
 </main>

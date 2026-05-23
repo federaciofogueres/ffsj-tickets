@@ -45,6 +45,15 @@ export interface TicketValidationResult {
   codigo: string;
   message: string;
   ticket: Ticket | null;
+  summary?: {
+    type: 'ticket' | 'batch';
+    total: number;
+    validatedNow: number;
+    alreadyValidated: number;
+    inactive: number;
+    blocked: number;
+    validatedAt: string | null;
+  };
 }
 
 export interface AdminStats {

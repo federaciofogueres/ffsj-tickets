@@ -76,6 +76,38 @@ export class ValidarComponent {
     });
   }
 
+  protected clearResult(): void {
+    this.result = null;
+  }
+
+  protected get resultTone(): 'success' | 'warning' | 'error' {
+    if (this.result?.status === 'valid') {
+      return 'success';
+    }
+    if (this.result?.status === 'used') {
+      return 'warning';
+    }
+    return 'error';
+  }
+
+  protected get resultTitle(): string {
+    if (this.resultTone === 'success') {
+      return this.result?.summary?.type === 'batch' ? 'Lote validado' : 'Entrada validada';
+    }
+    if (this.resultTone === 'warning') {
+      return this.result?.summary?.type === 'batch' ? 'Lote ya validado' : 'Entrada ya validada';
+    }
+    return 'Validacion rechazada';
+  }
+
+  protected get validationTime(): string | null {
+    return this.result?.summary?.validatedAt ?? this.result?.ticket?.validatedAt ?? this.result?.ticket?.usadaAt ?? null;
+  }
+
+  protected get activationTime(): string | null {
+    return this.result?.ticket?.activadaAt ?? null;
+  }
+
   private extractCode(value: string): string {
     const trimmed = String(value || '').trim();
     if (!trimmed) {
