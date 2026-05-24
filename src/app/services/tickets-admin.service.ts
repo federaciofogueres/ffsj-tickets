@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
-import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketValidationResult } from '../models/ticket.model';
+import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketValidationResult, TrackingLog } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -88,6 +88,31 @@ export class TicketsAdminService {
 
   downloadPdf(year: string, target?: { code?: string; batchId?: string }): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/tickets/pdf`, { headers: this.headers, params: this.params(year, target), responseType: 'blob' });
+  }
+
+  listTracking(options: {
+    year: string;
+    limit: number;
+    cursor?: string | null;
+    search?: string;
+    action?: string;
+    actor?: string;
+    ip?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Observable<ApiResponse<PaginatedResponse<TrackingLog>>> {
+    return this.http.get<ApiResponse<PaginatedResponse<TrackingLog>>>(`${this.baseUrl}/tracking`, {
+      headers: this.headers,
+      params: this.params(options.year, options)
+    });
+  }
+
+  getTrackingLog(id: number, year: string): Observable<ApiResponse<TrackingLog>> {
+    return this.http.get<ApiResponse<TrackingLog>>(`${this.baseUrl}/tracking/${id}`, { headers: this.headers, params: this.params(year) });
+  }
+
+  listTrackingActions(year: string): Observable<ApiResponse<string[]>> {
+    return this.http.get<ApiResponse<string[]>>(`${this.baseUrl}/tracking/actions`, { headers: this.headers, params: this.params(year) });
   }
 
   private normalizeListResponse(response: unknown): ApiResponse<PaginatedResponse<Ticket>> {

@@ -9,7 +9,7 @@
     </div>
 
     <div class="section-switch">
-      <button type="button" class="switch-pill switch-pill-active">
+      <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'tickets'" (click)="setSection('tickets')">
         <i class="bi bi-ticket-perforated"></i>
         <span>Tickets</span>
       </button>
@@ -17,11 +17,7 @@
         <i class="bi bi-qr-code-scan"></i>
         <span>Validar</span>
       </a>
-      <button type="button" class="switch-pill muted-pill">
-        <i class="bi bi-check2-square"></i>
-        <span>Votos</span>
-      </button>
-      <button type="button" class="switch-pill muted-pill">
+      <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'tracking'" (click)="setSection('tracking')">
         <i class="bi bi-activity"></i>
         <span>Tracking</span>
       </button>
@@ -87,6 +83,7 @@
     <p class="message">{{ message }}</p>
     }
 
+    @if (section === 'tickets') {
     <section class="section-tabs" aria-label="Gestion de tickets">
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'generate'" (click)="setTab('generate')">
         Generacion de tickets
@@ -324,6 +321,105 @@
 
       @if (cursor) {
       <button type="button" class="secondary-btn load-more" (click)="loadTickets()">Cargar mas tickets</button>
+      }
+    </section>
+    }
+    } @else {
+    <section class="panel-card records-panel tracking-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Tracking</p>
+          <h2>Eventos registrados</h2>
+        </div>
+        <button type="button" class="ghost-btn" (click)="loadTracking(true)">Refrescar</button>
+      </div>
+
+      <div class="tracking-toolbar">
+        <label class="field compact-field tracking-search">
+          <span>Buscar</span>
+          <input type="search" [(ngModel)]="trackingFilters.search" (input)="loadTracking(true)"
+            placeholder="Buscar por accion, autor, IP, destino o mensaje">
+        </label>
+        <div class="tracking-filter-box">
+          <button type="button" class="filter-toggle" (click)="trackingFiltersOpen = !trackingFiltersOpen">
+            <i class="bi bi-sort-down"></i>
+            <span>Filtros</span>
+          </button>
+          @if (trackingFiltersOpen) {
+          <div class="filter-menu">
+            <p>Filtrar por</p>
+            <label class="field compact-field">
+              <span>Accion</span>
+              <select [(ngModel)]="trackingFilters.action" (change)="loadTracking(true)">
+                <option value="">Todas</option>
+                @for (action of trackingActions; track action) {
+                <option [value]="action">{{ action }}</option>
+                }
+              </select>
+            </label>
+            <label class="field compact-field">
+              <span>Autor</span>
+              <input type="search" [(ngModel)]="trackingFilters.actor" (input)="loadTracking(true)" placeholder="Admin o ID">
+            </label>
+            <label class="field compact-field">
+              <span>IP</span>
+              <input type="search" [(ngModel)]="trackingFilters.ip" (input)="loadTracking(true)" placeholder="0.0.0.0">
+            </label>
+            <div class="two-columns">
+              <label class="field compact-field">
+                <span>Desde</span>
+                <input type="date" [(ngModel)]="trackingFilters.dateFrom" (change)="loadTracking(true)">
+              </label>
+              <label class="field compact-field">
+                <span>Hasta</span>
+                <input type="date" [(ngModel)]="trackingFilters.dateTo" (change)="loadTracking(true)">
+              </label>
+            </div>
+            <button type="button" class="secondary-btn" (click)="clearTrackingFilters()">Limpiar filtros</button>
+          </div>
+          }
+        </div>
+      </div>
+
+      <p class="records-summary">
+        @if (trackingLoading) {
+          Cargando eventos...
+        } @else {
+          {{ trackingLogs.length }} eventos encontrados
+        }
+      </p>
+
+      <div class="tracking-list">
+        @for (log of trackingLogs; track log.id) {
+        <article class="tracking-card" [class.tracking-card-expanded]="expandedTrackingId === log.id">
+          <button type="button" class="tracking-summary" (click)="toggleTracking(log)" [attr.aria-expanded]="expandedTrackingId === log.id">
+            <span>
+              <strong>{{ log.action }}</strong>
+              <small>{{ log.createdAt | date:'medium' }}</small>
+            </span>
+            <span class="tracking-status">{{ log.status }}</span>
+          </button>
+          @if (expandedTrackingId === log.id) {
+          <div class="tracking-expanded">
+            <dl class="record-meta">
+              <div><dt>Autor</dt><dd>{{ log.actorLabel || log.actorId || 'Sistema' }}</dd></div>
+              <div><dt>IP</dt><dd>{{ log.ip || 'N/D' }}</dd></div>
+              <div><dt>Destino</dt><dd>{{ log.targetType || 'N/D' }} · {{ log.targetId || 'N/D' }}</dd></div>
+              <div><dt>Ruta</dt><dd>{{ log.method }} {{ log.path }}</dd></div>
+            </dl>
+            @if (log.message) {
+            <p class="helper-copy">{{ log.message }}</p>
+            }
+            <p class="tracking-preview">{{ trackingMetadataPreview(log) }}</p>
+            <button type="button" class="primary-btn compact-action" (click)="openTrackingDetail(log)">Ver detalles</button>
+          </div>
+          }
+        </article>
+        }
+      </div>
+
+      @if (trackingCursor) {
+      <button type="button" class="secondary-btn load-more" (click)="loadTracking()">Cargar mas eventos</button>
       }
     </section>
     }

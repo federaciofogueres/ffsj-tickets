@@ -1,0 +1,41 @@
+<main class="detail-shell">
+  <header class="detail-hero">
+    <div>
+      <p class="eyebrow">Tracking</p>
+      <h1>Detalle del evento</h1>
+      <p>Informacion completa del log registrado en la API.</p>
+    </div>
+    <a class="ghost-link" routerLink="/backoffice">Volver</a>
+  </header>
+
+  @if (loading) {
+  <section class="detail-card">Cargando evento...</section>
+  } @else if (error) {
+  <section class="detail-card detail-error">{{ error }}</section>
+  } @else if (log) {
+  <section class="detail-card">
+    <div class="detail-title">
+      <div>
+        <p class="eyebrow">{{ log.action }}</p>
+        <h2>#{{ log.id }}</h2>
+      </div>
+      <span>{{ log.status }}</span>
+    </div>
+
+    <dl class="detail-grid">
+      <div><dt>Fecha</dt><dd>{{ log.createdAt | date:'medium' }}</dd></div>
+      <div><dt>Autor</dt><dd>{{ log.actorLabel || log.actorId || 'Sistema' }}</dd></div>
+      <div><dt>IP</dt><dd>{{ log.ip || 'N/D' }}</dd></div>
+      <div><dt>Metodo</dt><dd>{{ log.method }}</dd></div>
+      <div><dt>Ruta</dt><dd>{{ log.path }}</dd></div>
+      <div><dt>Destino</dt><dd>{{ log.targetType || 'N/D' }} · {{ log.targetId || 'N/D' }}</dd></div>
+      <div><dt>Mensaje</dt><dd>{{ log.message || 'Sin mensaje' }}</dd></div>
+    </dl>
+
+    <section class="metadata-block">
+      <h3>Metadatos</h3>
+      <pre>{{ metadata() }}</pre>
+    </section>
+  </section>
+  }
+</main>

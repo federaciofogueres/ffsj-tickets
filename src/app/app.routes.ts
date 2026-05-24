@@ -1,14 +1,12 @@
 import { Routes } from '@angular/router';
 
-import { BackofficeComponent } from './components/backoffice/backoffice.component';
-import { LoginComponent } from './components/login/login.component';
-import { ValidarComponent } from './components/validar/validar.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
-  { path: 'login', component: LoginComponent },
-  { path: 'validar', component: ValidarComponent, canActivate: [authGuard] },
-  { path: 'backoffice', component: BackofficeComponent, canActivate: [authGuard] },
+  { path: 'login', loadComponent: () => import('./components/login/login.component').then((m) => m.LoginComponent) },
+  { path: 'validar', loadComponent: () => import('./components/validar/validar.component').then((m) => m.ValidarComponent), canActivate: [authGuard] },
+  { path: 'backoffice/tracking/:id', loadComponent: () => import('./components/tracking-detail/tracking-detail.component').then((m) => m.TrackingDetailComponent), canActivate: [authGuard] },
+  { path: 'backoffice', loadComponent: () => import('./components/backoffice/backoffice.component').then((m) => m.BackofficeComponent), canActivate: [authGuard] },
   { path: '', redirectTo: 'backoffice', pathMatch: 'full' },
   { path: '**', redirectTo: 'backoffice' }
 ];

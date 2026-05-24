@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { saveAs } from 'file-saver';
 
-import { AdminStats, Ticket } from '../../models/ticket.model';
+import { AdminStats, Ticket, TrackingLog } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
 
 type Tab = 'generate' | 'tickets' | 'batches' | 'activate';
+type BackofficeSection = 'tickets' | 'tracking';
 
 @Component({
   selector: 'app-backoffice',
@@ -20,8 +21,10 @@ export class BackofficeComponent implements OnInit {
   private readonly ticketsAdminService = inject(TicketsAdminService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly ngZone = inject(NgZone);
+  private readonly router = inject(Router);
 
   protected year = String(new Date().getFullYear());
+  protected section: BackofficeSection = 'tickets';
   protected tab: Tab = 'generate';
   protected loading = false;
   protected message = '';
@@ -35,6 +38,20 @@ export class BackofficeComponent implements OnInit {
   protected currentPage = 1;
   protected expandedTicketCode: string | null = null;
   protected expandedBatchId: string | null = null;
+  protected trackingLogs: TrackingLog[] = [];
+  protected trackingCursor: string | null = null;
+  protected trackingLoading = false;
+  protected trackingFiltersOpen = false;
+  protected expandedTrackingId: number | null = null;
+  protected trackingActions: string[] = [];
+  protected trackingFilters = {
+    search: '',
+    action: '',
+    actor: '',
+    ip: '',
+    dateFrom: '',
+    dateTo: ''
+  };
 
   protected ticketForm = { codigo: '', activada: true, bloqueada: false };
   protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true };
@@ -47,7 +64,23 @@ export class BackofficeComponent implements OnInit {
 
   protected refresh(): void {
     this.loadStats();
-    this.loadTickets(true);
+    if (this.section === 'tracking') {
+      this.loadTracking(true);
+      this.loadTrackingActions();
+    } else {
+      this.loadTickets(true);
+    }
+  }
+
+  protected setSection(section: BackofficeSection): void {
+    this.section = section;
+    this.message = '';
+    if (section === 'tracking') {
+      this.loadTracking(true);
+      this.loadTrackingActions();
+    } else {
+      this.loadTickets(true);
+    }
   }
 
   protected setTab(tab: Tab): void {
@@ -148,6 +181,46 @@ export class BackofficeComponent implements OnInit {
         this.applyViewUpdate(() => {
           this.listLoading = false;
           this.setMessage('No se han podido cargar las entradas.');
+        });
+      }
+    });
+  }
+
+  protected loadTracking(reset = false): void {
+    if (reset) {
+      this.trackingCursor = null;
+      this.trackingLogs = [];
+      this.expandedTrackingId = null;
+    }
+
+    this.trackingLoading = true;
+    this.ticketsAdminService.listTracking({
+      year: this.year,
+      limit: 30,
+      cursor: this.trackingCursor,
+      ...this.trackingFilters
+    }).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.trackingLogs = reset ? data.items : [...this.trackingLogs, ...data.items];
+          this.trackingCursor = data.nextCursor;
+          this.trackingLoading = false;
+        });
+      },
+      error: () => {
+        this.applyViewUpdate(() => {
+          this.trackingLoading = false;
+          this.setMessage('No se han podido cargar los eventos de tracking.');
+        });
+      }
+    });
+  }
+
+  protected loadTrackingActions(): void {
+    this.ticketsAdminService.listTrackingActions(this.year).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.trackingActions = data;
         });
       }
     });
@@ -310,6 +383,28 @@ export class BackofficeComponent implements OnInit {
 
   protected nextPage(): void {
     this.currentPage = Math.min(this.totalPages, this.currentPage + 1);
+  }
+
+  protected toggleTracking(log: TrackingLog): void {
+    this.expandedTrackingId = this.expandedTrackingId === log.id ? null : log.id;
+  }
+
+  protected openTrackingDetail(log: TrackingLog): void {
+    void this.router.navigate(['/backoffice/tracking', log.id], { queryParams: { year: this.year } });
+  }
+
+  protected clearTrackingFilters(): void {
+    this.trackingFilters = { search: '', action: '', actor: '', ip: '', dateFrom: '', dateTo: '' };
+    this.trackingFiltersOpen = false;
+    this.loadTracking(true);
+  }
+
+  protected trackingMetadataPreview(log: TrackingLog): string {
+    if (!log.metadata) {
+      return 'Sin metadatos';
+    }
+    const text = JSON.stringify(log.metadata);
+    return text.length > 160 ? `${text.slice(0, 160)}...` : text;
   }
 
   protected previousPage(): void {

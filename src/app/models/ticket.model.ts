@@ -63,3 +63,20 @@ export interface AdminStats {
   totalBloqueadas: number;
   totalLotes: number;
 }
+
+export interface TrackingLog {
+  id: number;
+  year: string;
+  action: string;
+  actorId: string | null;
+  actorLabel: string | null;
+  ip: string | null;
+  method: string;
+  path: string;
+  targetType: string | null;
+  targetId: string | null;
+  status: string;
+  message: string | null;
+  metadata: unknown;
+  createdAt: string;
+}
