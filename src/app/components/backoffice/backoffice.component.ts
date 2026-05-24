@@ -30,6 +30,7 @@ export class BackofficeComponent implements OnInit {
   protected tab: Tab = 'generate';
   protected loading = false;
   protected message = '';
+  protected messageTone: 'success' | 'error' | 'warning' | 'info' | 'neutral' = 'neutral';
   protected listLoading = false;
   protected stats: AdminStats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
   protected tickets: Ticket[] = [];
@@ -104,7 +105,7 @@ export class BackofficeComponent implements OnInit {
   protected createTicket(): void {
     const codigo = this.ticketForm.codigo.trim().toUpperCase();
     if (!codigo) {
-      this.setMessage('Indica un codigo.');
+      this.setMessage('Indica un codigo.', 'warning');
       return;
     }
 
@@ -112,7 +113,7 @@ export class BackofficeComponent implements OnInit {
     this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo }, this.year).subscribe({
       next: () => {
         this.ticketForm.codigo = '';
-        this.setMessage('Entrada creada.');
+        this.setMessage('Entrada creada.', 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido crear la entrada.')
@@ -124,7 +125,7 @@ export class BackofficeComponent implements OnInit {
     this.ticketsAdminService.generateTickets(this.batchForm, this.year).subscribe({
       next: ({ data }) => {
         this.emailForm.batchId = data.batchId;
-        this.setMessage(`Lote ${data.batchId} generado con ${data.totalGenerated} entradas.`);
+        this.setMessage(`Lote ${data.batchId} generado con ${data.totalGenerated} entradas.`, 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido generar el lote.')
@@ -136,14 +137,14 @@ export class BackofficeComponent implements OnInit {
     const code = this.emailForm.code.trim().toUpperCase();
     const batchId = this.emailForm.batchId.trim();
     if (!email || Boolean(code) === Boolean(batchId)) {
-      this.setMessage('Indica email y un solo destino: codigo o lote.');
+      this.setMessage('Indica email y un solo destino: codigo o lote.', 'warning');
       return;
     }
 
     this.loading = true;
     this.ticketsAdminService.sendTicketsByEmail({ email, ...(code ? { code } : {}), ...(batchId ? { batchId } : {}) }, this.year).subscribe({
       next: ({ data }) => {
-        this.setMessage(`${data.sent} entradas enviadas a ${data.email}.`);
+        this.setMessage(`${data.sent} entradas enviadas a ${data.email}.`, 'success');
         this.loading = false;
       },
       error: (error) => this.handleError(error, 'No se ha podido enviar el email.')
@@ -158,7 +159,7 @@ export class BackofficeComponent implements OnInit {
         });
       },
       error: () => {
-        this.setMessage('No se han podido cargar las estadisticas.');
+        this.setMessage('No se han podido cargar las estadisticas.', 'error');
       }
     });
   }
@@ -190,7 +191,7 @@ export class BackofficeComponent implements OnInit {
       error: () => {
         this.applyViewUpdate(() => {
           this.listLoading = false;
-          this.setMessage('No se han podido cargar las entradas.');
+          this.setMessage('No se han podido cargar las entradas.', 'error');
         });
       }
     });
@@ -220,7 +221,7 @@ export class BackofficeComponent implements OnInit {
       error: () => {
         this.applyViewUpdate(() => {
           this.trackingLoading = false;
-          this.setMessage('No se han podido cargar los eventos de tracking.');
+          this.setMessage('No se han podido cargar los eventos de tracking.', 'error');
         });
       }
     });
@@ -240,7 +241,7 @@ export class BackofficeComponent implements OnInit {
     this.loading = true;
     this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada }, this.year).subscribe({
       next: () => {
-        this.setMessage('Entrada actualizada.');
+        this.setMessage('Entrada actualizada.', 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido actualizar la entrada.')
@@ -254,7 +255,7 @@ export class BackofficeComponent implements OnInit {
     this.loading = true;
     this.ticketsAdminService.deleteTicket(ticket.codigo, this.year).subscribe({
       next: () => {
-        this.setMessage('Entrada eliminada.');
+        this.setMessage('Entrada eliminada.', 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido eliminar la entrada.')
@@ -270,7 +271,7 @@ export class BackofficeComponent implements OnInit {
     this.ticketsAdminService.deleteBatch(batchId, this.year).subscribe({
       next: ({ data }) => {
         this.expandedBatchId = null;
-        this.setMessage(`Lote eliminado: ${data.deleted} entradas.`);
+        this.setMessage(`Lote eliminado: ${data.deleted} entradas.`, 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido eliminar el lote.')
@@ -281,7 +282,7 @@ export class BackofficeComponent implements OnInit {
     this.loading = true;
     this.ticketsAdminService.activateBatch(batchId, this.year).subscribe({
       next: ({ data }) => {
-        this.setMessage(`Lote activado: ${data.activatedCount}/${data.total}.`);
+        this.setMessage(`Lote activado: ${data.activatedCount}/${data.total}.`, 'success');
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido activar el lote.')
@@ -291,7 +292,7 @@ export class BackofficeComponent implements OnInit {
   protected activateFromForm(): void {
     const value = this.activationForm.code.trim();
     if (!value) {
-      this.setMessage('Indica un codigo de entrada o lote.');
+      this.setMessage('Indica un codigo de entrada o lote.', 'warning');
       return;
     }
 
@@ -304,7 +305,7 @@ export class BackofficeComponent implements OnInit {
 
     this.ticketsAdminService.updateTicket(value.toUpperCase(), { activada: true }, this.year).subscribe({
       next: () => {
-        this.setMessage('Entrada activada.');
+        this.setMessage('Entrada activada.', 'success');
         this.activationForm.code = '';
         this.refresh();
       },
@@ -391,6 +392,19 @@ export class BackofficeComponent implements OnInit {
     return '';
   }
 
+  protected ticketCardClass(ticket: Ticket): string {
+    if (ticket.usada) {
+      return 'record-card-success';
+    }
+    if (ticket.bloqueada) {
+      return 'record-card-danger';
+    }
+    if (ticket.activada) {
+      return 'record-card-info';
+    }
+    return 'record-card-neutral';
+  }
+
   protected nextPage(): void {
     this.currentPage = Math.min(this.totalPages, this.currentPage + 1);
   }
@@ -417,13 +431,21 @@ export class BackofficeComponent implements OnInit {
     return text.length > 160 ? `${text.slice(0, 160)}...` : text;
   }
 
+  protected trackingToneClass(log: TrackingLog): string {
+    return `tracking-card-${this.trackingTone(log)}`;
+  }
+
+  protected trackingStatusClass(log: TrackingLog): string {
+    return `tracking-status-${this.trackingTone(log)}`;
+  }
+
   protected previousPage(): void {
     this.currentPage = Math.max(1, this.currentPage - 1);
   }
 
   private handleError(error: unknown, fallback: string): void {
     const response = error as { error?: { error?: { message?: string } } };
-    this.setMessage(response.error?.error?.message || fallback);
+    this.setMessage(response.error?.error?.message || fallback, 'error');
   }
 
   private applyViewUpdate(update: () => void): void {
@@ -433,9 +455,31 @@ export class BackofficeComponent implements OnInit {
     });
   }
 
-  private setMessage(message: string): void {
+  private setMessage(message: string, tone: 'success' | 'error' | 'warning' | 'info' | 'neutral' = 'neutral'): void {
     this.message = message;
+    this.messageTone = tone;
     this.loading = false;
     this.changeDetectorRef.detectChanges();
+  }
+
+  private trackingTone(log: TrackingLog): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
+    const action = `${log.action || ''} ${log.status || ''} ${log.message || ''}`.toLowerCase();
+
+    if (/(error|fail|failed|invalid|rechaz|denied|unauthorized)/.test(action)) {
+      return 'error';
+    }
+    if (/(delete|deleted|remove|removed|borr|elimin|block|blocked|bloque|cancel)/.test(action)) {
+      return 'error';
+    }
+    if (/(warn|warning|used|already|inactive|pendiente|duplic)/.test(action)) {
+      return 'warning';
+    }
+    if (/(email|mail|export|download|pdf|csv|list|read|detail|info)/.test(action)) {
+      return 'info';
+    }
+    if (/(ok|success|create|created|generate|generated|activate|activated|validate|validated|update|updated)/.test(action)) {
+      return 'success';
+    }
+    return 'neutral';
   }
 }

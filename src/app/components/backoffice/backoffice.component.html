@@ -80,7 +80,7 @@
     </section>
 
     @if (message) {
-    <p class="message">{{ message }}</p>
+    <p class="message" [ngClass]="'message-' + messageTone">{{ message }}</p>
     }
 
     @if (section === 'tickets') {
@@ -239,7 +239,7 @@
       @if (tab === 'tickets') {
       <div class="records-list">
         @for (ticket of visibleTickets; track ticket.codigo) {
-        <article class="record-card ticket-record-card" [class.record-card-expanded]="expandedTicketCode === ticket.codigo">
+        <article class="record-card ticket-record-card" [ngClass]="ticketCardClass(ticket)" [class.record-card-expanded]="expandedTicketCode === ticket.codigo">
           <button type="button" class="record-summary-button" (click)="toggleTicket(ticket)"
             [attr.aria-expanded]="expandedTicketCode === ticket.codigo">
             <span class="record-summary-main">
@@ -393,13 +393,13 @@
 
       <div class="tracking-list">
         @for (log of trackingLogs; track log.id) {
-        <article class="tracking-card" [class.tracking-card-expanded]="expandedTrackingId === log.id">
+        <article class="tracking-card" [ngClass]="trackingToneClass(log)" [class.tracking-card-expanded]="expandedTrackingId === log.id">
           <button type="button" class="tracking-summary" (click)="toggleTracking(log)" [attr.aria-expanded]="expandedTrackingId === log.id">
             <span>
               <strong>{{ log.action }}</strong>
               <small>{{ log.createdAt | date:'medium' }}</small>
             </span>
-            <span class="tracking-status">{{ log.status }}</span>
+            <span class="tracking-status" [ngClass]="trackingStatusClass(log)">{{ log.status }}</span>
           </button>
           @if (expandedTrackingId === log.id) {
           <div class="tracking-expanded">

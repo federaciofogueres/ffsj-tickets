@@ -384,12 +384,40 @@
 
 .message {
   background: #ffffff;
-  border: 1px solid #ffd0d0;
   border-radius: 14px;
-  color: #b91c1c;
   font-weight: 1000;
   margin: 0;
   padding: 0.9rem 1rem;
+}
+
+.message-success {
+  background: #ecfdf3;
+  border: 1px solid #86efac;
+  color: #047857;
+}
+
+.message-error {
+  background: #fff1f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+
+.message-warning {
+  background: #fffbeb;
+  border: 1px solid #facc15;
+  color: #92400e;
+}
+
+.message-info {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1d4ed8;
+}
+
+.message-neutral {
+  background: #f8fafc;
+  border: 1px solid #dfe5ee;
+  color: #536070;
 }
 
 .records-panel {
@@ -435,9 +463,43 @@
 }
 
 .record-card-expanded {
-  background: linear-gradient(90deg, #eef5ff 0%, #ffffff 58%);
-  border-color: #4f86ff;
-  border-left-color: #4f86ff;
+  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 58%);
+}
+
+.record-card-success {
+  border-color: #86efac;
+  border-left-color: #22c55e;
+}
+
+.record-card-success.record-card-expanded {
+  background: linear-gradient(90deg, #ecfdf3 0%, #ffffff 58%);
+}
+
+.record-card-info {
+  border-color: #93c5fd;
+  border-left-color: #3b82f6;
+}
+
+.record-card-info.record-card-expanded {
+  background: linear-gradient(90deg, #eff6ff 0%, #ffffff 58%);
+}
+
+.record-card-danger {
+  border-color: #fca5a5;
+  border-left-color: #ef4444;
+}
+
+.record-card-danger.record-card-expanded {
+  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 58%);
+}
+
+.record-card-neutral {
+  border-color: #cbd5e1;
+  border-left-color: #94a3b8;
+}
+
+.record-card-neutral.record-card-expanded {
+  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 58%);
 }
 
 .record-summary-button {
@@ -633,9 +695,48 @@
 }
 
 .tracking-card-expanded {
-  background: linear-gradient(90deg, #fff5f5 0%, #ffffff 58%);
-  border-color: #ff9a9a;
-  border-left-color: #e00000;
+  background: linear-gradient(90deg, #f8fafc 0%, #ffffff 58%);
+}
+
+.tracking-card-success {
+  border-color: #86efac;
+  border-left-color: #22c55e;
+}
+
+.tracking-card-success.tracking-card-expanded {
+  background: linear-gradient(90deg, #ecfdf3 0%, #ffffff 58%);
+}
+
+.tracking-card-error {
+  border-color: #fca5a5;
+  border-left-color: #ef4444;
+}
+
+.tracking-card-error.tracking-card-expanded {
+  background: linear-gradient(90deg, #fff1f2 0%, #ffffff 58%);
+}
+
+.tracking-card-warning {
+  border-color: #facc15;
+  border-left-color: #f59e0b;
+}
+
+.tracking-card-warning.tracking-card-expanded {
+  background: linear-gradient(90deg, #fffbeb 0%, #ffffff 58%);
+}
+
+.tracking-card-info {
+  border-color: #93c5fd;
+  border-left-color: #3b82f6;
+}
+
+.tracking-card-info.tracking-card-expanded {
+  background: linear-gradient(90deg, #eff6ff 0%, #ffffff 58%);
+}
+
+.tracking-card-neutral {
+  border-color: #cbd5e1;
+  border-left-color: #94a3b8;
 }
 
 .tracking-summary {
@@ -674,6 +775,31 @@
   font-size: 0.82rem;
   font-weight: 1000;
   padding: 0.45rem 0.7rem;
+}
+
+.tracking-status-success {
+  background: #dcfce7;
+  color: #047857;
+}
+
+.tracking-status-error {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tracking-status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tracking-status-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.tracking-status-neutral {
+  background: #eef0f4;
+  color: #536070;
 }
 
 .tracking-expanded {
