@@ -1,12 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { CookieService } from 'ngx-cookie-service';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, of } from 'rxjs';
+import { catchError, timeout } from 'rxjs/operators';
 
+import { environment } from '../../environments/environment';
 import { ResponseToken } from '../../external-api/responseToken';
 import { Usuario } from '../../external-api/usuario';
 import { CensoService } from './censo.service';
 import { EncoderService } from './encoder.service';
+
+export type LoginResult = 'ok' | 'invalid' | 'not-admin';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -31,31 +35,53 @@ export class AuthService {
     this.loggedInSubject.next(true);
   }
 
-  login(user: string, password: string): Promise<boolean> {
+  async login(user: string, password: string): Promise<LoginResult> {
     const usuario: Usuario = {
       user,
       password: this.encoderService.encrypt(password)
     };
 
-    return new Promise((resolve) => {
-      this.censoService.doLogin(usuario).subscribe({
-        next: (response: ResponseToken) => {
-          if (response.token) {
-            this.saveToken(String(response.token));
-            this.censoService.configuration.accessToken = String(response.token);
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        },
-        error: () => resolve(false)
-      });
-    });
+    const response = await firstValueFrom(
+      this.censoService.doLogin(usuario).pipe(
+        timeout(12000),
+        catchError(() => of(null))
+      )
+    );
+
+    const token = (response as ResponseToken | null)?.token;
+    if (!token) {
+      return 'invalid';
+    }
+
+    const tokenValue = String(token);
+    if (await this.isAdminToken(tokenValue)) {
+      this.saveToken(tokenValue);
+      this.censoService.configuration.accessToken = tokenValue;
+      return 'ok';
+    }
+
+    this.clearToken();
+    return 'not-admin';
+  }
+
+  async ensureAdmin(): Promise<boolean> {
+    const token = this.getToken();
+    if (!token || !this.isLoggedIn()) {
+      this.clearToken();
+      return false;
+    }
+
+    if (await this.isAdminToken(token)) {
+      this.censoService.configuration.accessToken = token;
+      return true;
+    }
+
+    this.clearToken();
+    return false;
   }
 
   logout(): void {
-    this.cookieService.delete(this.tokenKey, '/');
-    this.loggedInSubject.next(false);
+    this.clearToken();
     void this.router.navigate(['/login']);
   }
 
@@ -76,5 +102,31 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  private async isAdminToken(token: string): Promise<boolean> {
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+    if (environment.adminApiKey) {
+      headers['x-admin-key'] = environment.adminApiKey;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(`${environment.adminApiBaseUrl}/me`, {
+        headers,
+        signal: controller.signal
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  private clearToken(): void {
+    this.cookieService.delete(this.tokenKey, '/');
+    this.loggedInSubject.next(false);
   }
 }

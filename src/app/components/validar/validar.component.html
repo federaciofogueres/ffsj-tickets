@@ -82,4 +82,14 @@
     </div>
   </section>
   }
+
+  @if (loading) {
+  <section class="scan-loading-overlay" role="status" aria-live="assertive">
+    <div class="scan-loading-card">
+      <span class="scan-spinner" aria-hidden="true"></span>
+      <h2>Validando entrada</h2>
+      <p>{{ code || 'Leyendo codigo QR...' }}</p>
+    </div>
+  </section>
+  }
 </main>

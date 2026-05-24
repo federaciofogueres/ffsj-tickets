@@ -2,15 +2,12 @@ import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
 import { AuthService } from '../services/auth.service';
-import { CensoService } from '../services/censo.service';
 
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = async () => {
   const authService = inject(AuthService);
-  const censoService = inject(CensoService);
   const router = inject(Router);
 
-  if (authService.isLoggedIn()) {
-    censoService.configuration.accessToken = authService.getToken();
+  if (await authService.ensureAdmin()) {
     return true;
   }
 

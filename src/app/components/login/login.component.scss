@@ -1,11 +1,11 @@
-.login-shell {
+.login-page {
   align-items: center;
   background:
     radial-gradient(circle at top right, rgba(214, 0, 0, 0.12), transparent 32%),
     linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
   display: flex;
   justify-content: center;
-  min-height: 100dvh;
+  min-height: calc(100dvh - 68px);
   padding: 1rem 1rem 6rem;
 }
 
@@ -85,14 +85,73 @@
 }
 
 .login-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
   color: #b91c1c;
   font-weight: 800;
+  margin: 0;
+  padding: 0.85rem 1rem;
 }
 
-.loading-box {
-  background: #fef2f2;
+.login-feedback {
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
   border-radius: 14px;
-  color: #991b1b;
-  font-weight: 900;
+  color: #166534;
+  font-weight: 800;
+  margin: 0;
+  padding: 0.85rem 1rem;
+}
+
+.login-spinner {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(4px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
   padding: 1rem;
+  position: fixed;
+  z-index: 10;
+}
+
+.login-spinner-card {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e7ef;
+  border-radius: 20px;
+  box-shadow: 0 22px 42px rgba(17, 24, 39, 0.12);
+  display: grid;
+  gap: 0.9rem;
+  justify-items: center;
+  margin-top: -3rem;
+  padding: 1.6rem 2rem;
+  text-align: center;
+}
+
+.login-spinner-card img {
+  height: 58px;
+  width: auto;
+}
+
+.login-spinner strong {
+  color: #991b1b;
+  font-size: 1.1rem;
+  font-weight: 1000;
+}
+
+.login-spinner-ring {
+  animation: login-spin 0.85s linear infinite;
+  border: 6px solid #fee2e2;
+  border-radius: 50%;
+  border-top-color: #e00000;
+  height: 72px;
+  width: 72px;
+}
+
+@keyframes login-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
