@@ -20,7 +20,10 @@
       @if (scannerOpen) {
       <zxing-scanner [formats]="formats" (scanSuccess)="onScan($event)"></zxing-scanner>
       } @else {
-      <p class="empty">Camara cerrada.</p>
+      <div class="scanner-placeholder">
+        <i class="bi bi-qr-code-scan"></i>
+        <p>Camara cerrada.</p>
+      </div>
       }
     </article>
 

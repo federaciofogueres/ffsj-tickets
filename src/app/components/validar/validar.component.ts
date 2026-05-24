@@ -22,10 +22,11 @@ export class ValidarComponent {
   protected readonly formats = [BarcodeFormat.QR_CODE];
   protected year = String(new Date().getFullYear());
   protected code = '';
-  protected scannerOpen = true;
+  protected scannerOpen = false;
   protected loading = false;
   protected result: TicketValidationResult | null = null;
   private lastScanned = '';
+  private reopenScannerAfterResult = false;
 
   constructor() {
     const queryCode = this.route.snapshot.queryParamMap.get('code');
@@ -44,13 +45,13 @@ export class ValidarComponent {
       return;
     }
     this.lastScanned = value;
-    this.validate(value);
+    this.validate(value, true);
     window.setTimeout(() => {
       this.lastScanned = '';
     }, 1800);
   }
 
-  protected validate(rawCode = this.code): void {
+  protected validate(rawCode = this.code, reopenScannerAfterResult = false): void {
     const code = this.extractCode(rawCode);
     if (!code) {
       this.result = { status: 'invalid', codigo: '', message: 'No se ha leido ningun codigo.', ticket: null };
@@ -58,6 +59,8 @@ export class ValidarComponent {
     }
 
     this.loading = true;
+    this.scannerOpen = false;
+    this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
     this.ticketsAdminService.validate(code, this.year).subscribe({
       next: ({ data }) => {
@@ -78,6 +81,10 @@ export class ValidarComponent {
 
   protected clearResult(): void {
     this.result = null;
+    if (this.reopenScannerAfterResult) {
+      this.scannerOpen = true;
+      this.reopenScannerAfterResult = false;
+    }
   }
 
   protected get resultTone(): 'success' | 'warning' | 'error' {

@@ -47,6 +47,29 @@ zxing-scanner {
   overflow: hidden;
 }
 
+.scanner-placeholder {
+  align-items: center;
+  background: #f7f8fb;
+  border: 1px dashed #cbd5e1;
+  border-radius: 18px;
+  color: #536070;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+  min-height: 430px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.scanner-placeholder i {
+  color: #e00000;
+  font-size: 3rem;
+}
+
+.scanner-placeholder p {
+  font-weight: 1000;
+}
+
 h1,
 h2,
 p {
