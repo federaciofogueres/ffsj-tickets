@@ -5,6 +5,15 @@
   padding: 1.4rem 1.8rem;
 }
 
+.validator-shell-embedded {
+  min-height: 0;
+  padding: 0;
+}
+
+.validator-shell-embedded .validator-header {
+  display: none;
+}
+
 .validator-header,
 .panel {
   background: #ffffff;

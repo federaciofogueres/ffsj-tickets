@@ -1,19 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink, Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { saveAs } from 'file-saver';
 
 import { AdminStats, Ticket, TrackingLog } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
+import { ValidarComponent } from '../validar/validar.component';
 
 type Tab = 'generate' | 'tickets' | 'batches' | 'activate';
-type BackofficeSection = 'tickets' | 'tracking';
+type BackofficeSection = 'tickets' | 'validar' | 'tracking';
 
 @Component({
   selector: 'app-backoffice',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, ValidarComponent],
   templateUrl: './backoffice.component.html',
   styleUrl: './backoffice.component.scss'
 })
@@ -22,6 +23,7 @@ export class BackofficeComponent implements OnInit {
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly ngZone = inject(NgZone);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected year = String(new Date().getFullYear());
   protected section: BackofficeSection = 'tickets';
@@ -59,6 +61,10 @@ export class BackofficeComponent implements OnInit {
   protected activationForm = { code: '' };
 
   ngOnInit(): void {
+    const requestedSection = this.route.snapshot.queryParamMap.get('section');
+    if (requestedSection === 'tracking' || requestedSection === 'validar') {
+      this.section = requestedSection;
+    }
     this.refresh();
   }
 
@@ -67,6 +73,8 @@ export class BackofficeComponent implements OnInit {
     if (this.section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
+    } else if (this.section === 'validar') {
+      return;
     } else {
       this.loadTickets(true);
     }
@@ -78,6 +86,8 @@ export class BackofficeComponent implements OnInit {
     if (section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
+    } else if (section === 'validar') {
+      return;
     } else {
       this.loadTickets(true);
     }

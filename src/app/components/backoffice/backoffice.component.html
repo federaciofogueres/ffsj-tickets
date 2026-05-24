@@ -13,10 +13,10 @@
         <i class="bi bi-ticket-perforated"></i>
         <span>Tickets</span>
       </button>
-      <a class="switch-pill" routerLink="/validar">
+      <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'validar'" (click)="setSection('validar')">
         <i class="bi bi-qr-code-scan"></i>
         <span>Validar</span>
-      </a>
+      </button>
       <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'tracking'" (click)="setSection('tracking')">
         <i class="bi bi-activity"></i>
         <span>Tracking</span>
@@ -185,7 +185,7 @@
             <p class="panel-kicker">QR acceso</p>
             <h2>Leer codigo QR</h2>
           </div>
-          <a class="ghost-link" routerLink="/validar">Abrir camara</a>
+          <button type="button" class="ghost-link" (click)="setSection('validar')">Abrir camara</button>
         </div>
         <p class="helper-copy">Abre la camara del dispositivo de acceso y escanea el QR del ticket para validarlo.</p>
       </article>
@@ -324,6 +324,8 @@
       }
     </section>
     }
+    } @else if (section === 'validar') {
+    <app-validar [embedded]="true" [selectedYear]="year"></app-validar>
     } @else {
     <section class="panel-card records-panel tracking-panel">
       <div class="panel-header">

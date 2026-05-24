@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
@@ -27,6 +27,15 @@ export class ValidarComponent {
   protected result: TicketValidationResult | null = null;
   private lastScanned = '';
   private reopenScannerAfterResult = false;
+
+  @Input() embedded = false;
+
+  @Input()
+  set selectedYear(value: string | number | null | undefined) {
+    if (value) {
+      this.year = String(value);
+    }
+  }
 
   constructor() {
     const queryCode = this.route.snapshot.queryParamMap.get('code');
