@@ -5,7 +5,7 @@
       <h1>Detalle del evento</h1>
       <p>Informacion completa del log registrado en la API.</p>
     </div>
-    <a class="ghost-link" routerLink="/backoffice">Volver</a>
+    <a class="ghost-link" routerLink="/backoffice" [queryParams]="{ section: 'tracking' }">Volver</a>
   </header>
 
   @if (loading) {
@@ -23,19 +23,32 @@
     </div>
 
     <dl class="detail-grid">
+      <div><dt>ID</dt><dd>#{{ log.id }}</dd></div>
+      <div><dt>Ano</dt><dd>{{ log.year }}</dd></div>
+      <div><dt>Accion</dt><dd>{{ log.action }}</dd></div>
+      <div><dt>Estado</dt><dd>{{ log.status }}</dd></div>
       <div><dt>Fecha</dt><dd>{{ log.createdAt | date:'medium' }}</dd></div>
       <div><dt>Autor</dt><dd>{{ log.actorLabel || log.actorId || 'Sistema' }}</dd></div>
+      <div><dt>ID autor</dt><dd>{{ log.actorId || 'N/D' }}</dd></div>
       <div><dt>IP</dt><dd>{{ log.ip || 'N/D' }}</dd></div>
       <div><dt>Metodo</dt><dd>{{ log.method }}</dd></div>
       <div><dt>Ruta</dt><dd>{{ log.path }}</dd></div>
-      <div><dt>Destino</dt><dd>{{ log.targetType || 'N/D' }} · {{ log.targetId || 'N/D' }}</dd></div>
-      <div><dt>Mensaje</dt><dd>{{ log.message || 'Sin mensaje' }}</dd></div>
+      <div><dt>Tipo destino</dt><dd>{{ log.targetType || 'N/D' }}</dd></div>
+      <div><dt>ID destino</dt><dd>{{ log.targetId || 'N/D' }}</dd></div>
+      <div class="detail-grid-wide"><dt>Mensaje</dt><dd>{{ log.message || 'Sin mensaje' }}</dd></div>
     </dl>
 
-    <section class="metadata-block">
-      <h3>Metadatos</h3>
-      <pre>{{ metadata() }}</pre>
-    </section>
+    <div class="json-grid">
+      <section class="metadata-block">
+        <h3>Metadatos</h3>
+        <pre>{{ metadata() }}</pre>
+      </section>
+
+      <section class="metadata-block">
+        <h3>Evento completo</h3>
+        <pre>{{ rawEvent() }}</pre>
+      </section>
+    </div>
   </section>
   }
 </main>

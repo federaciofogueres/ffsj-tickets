@@ -98,6 +98,10 @@ h1 {
   padding: 0.85rem;
 }
 
+.detail-grid-wide {
+  grid-column: 1 / -1;
+}
+
 dt {
   color: #536070;
   font-size: 0.76rem;
@@ -114,16 +118,27 @@ dd {
 .metadata-block {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.json-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 pre {
   background: #111827;
   border-radius: 14px;
   color: #f9fafb;
+  font-size: 0.86rem;
+  line-height: 1.5;
   margin: 0;
+  max-height: 520px;
   overflow: auto;
   padding: 1rem;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 @media (max-width: 760px) {
@@ -138,6 +153,10 @@ pre {
   }
 
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .json-grid {
     grid-template-columns: 1fr;
   }
 }
