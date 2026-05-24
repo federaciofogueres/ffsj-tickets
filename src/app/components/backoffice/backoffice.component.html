@@ -44,12 +44,64 @@
       <div class="hero-actions">
         <label class="date-chip">
           <i class="bi bi-calendar3"></i>
-          <input type="text" [(ngModel)]="year" (change)="refresh()" aria-label="Ano del backoffice">
+          <input type="text" [(ngModel)]="year" (change)="loadEvents()" aria-label="Ano del backoffice">
           <i class="bi bi-chevron-down"></i>
         </label>
         <span class="admin-avatar"><i class="bi bi-person-fill"></i></span>
       </div>
     </header>
+
+    <section class="event-context-card">
+      <div>
+        <p class="panel-kicker">Evento activo</p>
+        <h2>{{ activeEvent?.nombre || 'Selecciona un evento' }}</h2>
+        <p class="helper-copy">
+          @if (activeEvent) {
+            {{ activeEvent.fechaEvento || 'Sin fecha' }} - {{ activeEvent.estado }}
+          } @else {
+            Selecciona o crea un evento para gestionar sus entradas.
+          }
+        </p>
+      </div>
+      <div class="event-controls">
+        <label class="field compact-field">
+          <span>Evento</span>
+          <select [ngModel]="activeEventId" (ngModelChange)="selectEvent($event)" [disabled]="eventLoading || !events.length">
+            @for (event of events; track event.id) {
+            <option [value]="event.id">{{ event.nombre }}</option>
+            }
+          </select>
+        </label>
+        <button type="button" class="ghost-btn" (click)="eventFormOpen = !eventFormOpen">
+          {{ eventFormOpen ? 'Cerrar' : 'Crear evento' }}
+        </button>
+      </div>
+
+      @if (eventFormOpen) {
+      <div class="event-form">
+        <label class="field">
+          <span>Nombre</span>
+          <input type="text" [(ngModel)]="eventForm.nombre" placeholder="Nombre del evento">
+        </label>
+        <label class="field">
+          <span>Fecha</span>
+          <input type="date" [(ngModel)]="eventForm.fechaEvento">
+        </label>
+        <label class="field">
+          <span>Estado</span>
+          <select [(ngModel)]="eventForm.estado">
+            <option value="activo">Activo</option>
+            <option value="finalizado">Finalizado</option>
+          </select>
+        </label>
+        <label class="field event-description">
+          <span>Descripcion</span>
+          <input type="text" [(ngModel)]="eventForm.descripcion" placeholder="Descripcion opcional">
+        </label>
+        <button type="button" class="primary-btn compact-action" [disabled]="eventLoading" (click)="createEvent()">Guardar evento</button>
+      </div>
+      }
+    </section>
 
     <section class="stats-grid">
       <article class="stat-card">
@@ -325,7 +377,7 @@
     </section>
     }
     } @else if (section === 'validar') {
-    <app-validar [embedded]="true" [selectedYear]="year"></app-validar>
+    <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId"></app-validar>
     } @else {
     <section class="panel-card records-panel tracking-panel">
       <div class="panel-header">

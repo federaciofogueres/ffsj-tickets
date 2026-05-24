@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
-import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketValidationResult, TrackingLog } from '../models/ticket.model';
+import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TrackingLog } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -43,50 +43,62 @@ export class TicketsAdminService {
     return this.http.get<ApiResponse<AdminStats>>(`${this.baseUrl}/stats`, { headers: this.headers, params: this.params(year) });
   }
 
-  listTickets(options: { year: string; limit: number; cursor?: string | null; status?: string; search?: string; mode?: 'single' | 'batch' }): Observable<ApiResponse<PaginatedResponse<Ticket>>> {
+  listEvents(year: string): Observable<ApiResponse<TicketEvent[]>> {
+    return this.http.get<ApiResponse<TicketEvent[]>>(`${this.baseUrl}/eventos`, { headers: this.headers, params: this.params(year) });
+  }
+
+  createEvent(payload: { nombre: string; descripcion?: string | null; fechaEvento?: string | null; estado?: 'activo' | 'finalizado' }, year: string): Observable<ApiResponse<TicketEvent>> {
+    return this.http.post<ApiResponse<TicketEvent>>(`${this.baseUrl}/eventos`, payload, { headers: this.headers, params: this.params(year) });
+  }
+
+  statsForEvent(year: string, eventId: string | null): Observable<ApiResponse<AdminStats>> {
+    return this.http.get<ApiResponse<AdminStats>>(`${this.baseUrl}/stats`, { headers: this.headers, params: this.params(year, { eventId }) });
+  }
+
+  listTickets(options: { year: string; eventId?: string | null; limit: number; cursor?: string | null; status?: string; search?: string; mode?: 'single' | 'batch' }): Observable<ApiResponse<PaginatedResponse<Ticket>>> {
     return this.http.get<unknown>(`${this.baseUrl}/tickets`, {
       headers: this.headers,
       params: this.params(options.year, options)
     }).pipe(map((response) => this.normalizeListResponse(response)));
   }
 
-  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean }, year: string): Observable<ApiResponse<Ticket>> {
-    return this.http.post<ApiResponse<Ticket>>(`${this.baseUrl}/tickets`, payload, { headers: this.headers, params: this.params(year) });
+  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+    return this.http.post<ApiResponse<Ticket>>(`${this.baseUrl}/tickets`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean }, year: string): Observable<ApiResponse<Ticket>> {
-    return this.http.put<ApiResponse<Ticket>>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, payload, { headers: this.headers, params: this.params(year) });
+  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+    return this.http.put<ApiResponse<Ticket>>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  deleteTicket(codigo: string, year: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, { headers: this.headers, params: this.params(year) });
+  deleteTicket(codigo: string, year: string, eventId?: string | null): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  deleteBatch(batchId: string, year: string): Observable<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>> {
-    return this.http.delete<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}`, { headers: this.headers, params: this.params(year) });
+  deleteBatch(batchId: string, year: string, eventId?: string | null): Observable<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>> {
+    return this.http.delete<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean }, year: string): Observable<ApiResponse<TicketBatchResult>> {
-    return this.http.post<ApiResponse<TicketBatchResult>>(`${this.baseUrl}/tickets/generate`, payload, { headers: this.headers, params: this.params(year) });
+  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<TicketBatchResult>> {
+    return this.http.post<ApiResponse<TicketBatchResult>>(`${this.baseUrl}/tickets/generate`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  activateBatch(batchId: string, year: string): Observable<ApiResponse<{ batchId: string; total: number; activatedCount: number }>> {
-    return this.http.put<ApiResponse<{ batchId: string; total: number; activatedCount: number }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}/activate`, {}, { headers: this.headers, params: this.params(year) });
+  activateBatch(batchId: string, year: string, eventId?: string | null): Observable<ApiResponse<{ batchId: string; total: number; activatedCount: number }>> {
+    return this.http.put<ApiResponse<{ batchId: string; total: number; activatedCount: number }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}/activate`, {}, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  sendTicketsByEmail(payload: { email: string; code?: string; batchId?: string }, year: string): Observable<ApiResponse<TicketEmailResult>> {
-    return this.http.post<ApiResponse<TicketEmailResult>>(`${this.baseUrl}/tickets/email`, payload, { headers: this.headers, params: this.params(year) });
+  sendTicketsByEmail(payload: { email: string; code?: string; batchId?: string }, year: string, eventId?: string | null): Observable<ApiResponse<TicketEmailResult>> {
+    return this.http.post<ApiResponse<TicketEmailResult>>(`${this.baseUrl}/tickets/email`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  validate(code: string, year: string): Observable<ApiResponse<TicketValidationResult>> {
-    return this.http.post<ApiResponse<TicketValidationResult>>(`${this.baseUrl}/validate`, { code }, { headers: this.headers, params: this.params(year) });
+  validate(code: string, year: string, eventId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
+    return this.http.post<ApiResponse<TicketValidationResult>>(`${this.baseUrl}/validate`, { code }, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  exportTickets(year: string): Observable<Blob> {
-    return this.http.get(`${this.baseUrl}/tickets/export`, { headers: this.headers, params: this.params(year), responseType: 'blob' });
+  exportTickets(year: string, eventId?: string | null): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/tickets/export`, { headers: this.headers, params: this.params(year, { eventId }), responseType: 'blob' });
   }
 
-  downloadPdf(year: string, target?: { code?: string; batchId?: string }): Observable<Blob> {
+  downloadPdf(year: string, target?: { code?: string; batchId?: string; eventId?: string | null }): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/tickets/pdf`, { headers: this.headers, params: this.params(year, target), responseType: 'blob' });
   }
 

@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { saveAs } from 'file-saver';
 
-import { AdminStats, Ticket, TrackingLog } from '../../models/ticket.model';
+import { AdminStats, Ticket, TicketEvent, TrackingLog } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
 import { ValidarComponent } from '../validar/validar.component';
 
 type Tab = 'generate' | 'tickets' | 'batches' | 'activate';
 type BackofficeSection = 'tickets' | 'validar' | 'tracking';
+const ACTIVE_EVENT_STORAGE_KEY = 'ffsj-tickets-active-event-id';
 
 @Component({
   selector: 'app-backoffice',
@@ -33,6 +34,11 @@ export class BackofficeComponent implements OnInit {
   protected messageTone: 'success' | 'error' | 'warning' | 'info' | 'neutral' = 'neutral';
   protected listLoading = false;
   protected stats: AdminStats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
+  protected events: TicketEvent[] = [];
+  protected activeEventId: string | null = sessionStorage.getItem(ACTIVE_EVENT_STORAGE_KEY);
+  protected eventLoading = false;
+  protected eventFormOpen = false;
+  protected eventForm = { nombre: '', descripcion: '', fechaEvento: '', estado: 'activo' as 'activo' | 'finalizado' };
   protected tickets: Ticket[] = [];
   protected cursor: string | null = null;
   protected status = 'all';
@@ -66,10 +72,15 @@ export class BackofficeComponent implements OnInit {
     if (requestedSection === 'tracking' || requestedSection === 'validar') {
       this.section = requestedSection;
     }
-    this.refresh();
+    this.loadEvents();
   }
 
   protected refresh(): void {
+    if (!this.activeEventId) {
+      this.resetTicketContext();
+      this.loadEvents();
+      return;
+    }
     this.loadStats();
     if (this.section === 'tracking') {
       this.loadTracking(true);
@@ -103,6 +114,7 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected createTicket(): void {
+    if (!this.requireActiveEvent()) return;
     const codigo = this.ticketForm.codigo.trim().toUpperCase();
     if (!codigo) {
       this.setMessage('Indica un codigo.', 'warning');
@@ -110,7 +122,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.loading = true;
-    this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo }, this.year).subscribe({
+    this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.ticketForm.codigo = '';
         this.setMessage('Entrada creada.', 'success');
@@ -121,8 +133,9 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected generateBatch(): void {
+    if (!this.requireActiveEvent()) return;
     this.loading = true;
-    this.ticketsAdminService.generateTickets(this.batchForm, this.year).subscribe({
+    this.ticketsAdminService.generateTickets(this.batchForm, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.emailForm.batchId = data.batchId;
         this.setMessage(`Lote ${data.batchId} generado con ${data.totalGenerated} entradas.`, 'success');
@@ -133,6 +146,7 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected sendEmail(): void {
+    if (!this.requireActiveEvent()) return;
     const email = this.emailForm.email.trim();
     const code = this.emailForm.code.trim().toUpperCase();
     const batchId = this.emailForm.batchId.trim();
@@ -142,7 +156,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.loading = true;
-    this.ticketsAdminService.sendTicketsByEmail({ email, ...(code ? { code } : {}), ...(batchId ? { batchId } : {}) }, this.year).subscribe({
+    this.ticketsAdminService.sendTicketsByEmail({ email, ...(code ? { code } : {}), ...(batchId ? { batchId } : {}) }, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.setMessage(`${data.sent} entradas enviadas a ${data.email}.`, 'success');
         this.loading = false;
@@ -152,7 +166,8 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected loadStats(): void {
-    this.ticketsAdminService.stats(this.year).subscribe({
+    if (!this.activeEventId) return;
+    this.ticketsAdminService.statsForEvent(this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.applyViewUpdate(() => {
           this.stats = data;
@@ -165,6 +180,10 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected loadTickets(reset = false): void {
+    if (!this.activeEventId) {
+      this.resetTicketContext();
+      return;
+    }
     if (reset) {
       this.cursor = null;
       this.tickets = [];
@@ -174,6 +193,7 @@ export class BackofficeComponent implements OnInit {
     this.listLoading = true;
     this.ticketsAdminService.listTickets({
       year: this.year,
+      eventId: this.activeEventId,
       limit: 50,
       cursor: this.cursor,
       status: this.status === 'all' ? undefined : this.status,
@@ -238,8 +258,9 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected saveTicket(ticket: Ticket): void {
+    if (!this.requireActiveEvent()) return;
     this.loading = true;
-    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada }, this.year).subscribe({
+    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada actualizada.', 'success');
         this.refresh();
@@ -249,11 +270,12 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected deleteTicket(ticket: Ticket): void {
+    if (!this.requireActiveEvent()) return;
     if (!confirm(`Eliminar entrada ${ticket.codigo}?`)) {
       return;
     }
     this.loading = true;
-    this.ticketsAdminService.deleteTicket(ticket.codigo, this.year).subscribe({
+    this.ticketsAdminService.deleteTicket(ticket.codigo, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada eliminada.', 'success');
         this.refresh();
@@ -263,12 +285,13 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected deleteBatch(batchId: string): void {
+    if (!this.requireActiveEvent()) return;
     if (!confirm(`Eliminar lote ${batchId}?`)) {
       return;
     }
 
     this.loading = true;
-    this.ticketsAdminService.deleteBatch(batchId, this.year).subscribe({
+    this.ticketsAdminService.deleteBatch(batchId, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.expandedBatchId = null;
         this.setMessage(`Lote eliminado: ${data.deleted} entradas.`, 'success');
@@ -279,8 +302,9 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected activateBatch(batchId: string): void {
+    if (!this.requireActiveEvent()) return;
     this.loading = true;
-    this.ticketsAdminService.activateBatch(batchId, this.year).subscribe({
+    this.ticketsAdminService.activateBatch(batchId, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.setMessage(`Lote activado: ${data.activatedCount}/${data.total}.`, 'success');
         this.refresh();
@@ -290,6 +314,7 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected activateFromForm(): void {
+    if (!this.requireActiveEvent()) return;
     const value = this.activationForm.code.trim();
     if (!value) {
       this.setMessage('Indica un codigo de entrada o lote.', 'warning');
@@ -303,7 +328,7 @@ export class BackofficeComponent implements OnInit {
       return;
     }
 
-    this.ticketsAdminService.updateTicket(value.toUpperCase(), { activada: true }, this.year).subscribe({
+    this.ticketsAdminService.updateTicket(value.toUpperCase(), { activada: true }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada activada.', 'success');
         this.activationForm.code = '';
@@ -314,15 +339,85 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected exportCsv(): void {
-    this.ticketsAdminService.exportTickets(this.year).subscribe((blob) => saveAs(blob, `tickets-${this.year}.csv`));
+    if (!this.requireActiveEvent()) return;
+    this.ticketsAdminService.exportTickets(this.year, this.activeEventId).subscribe((blob) => saveAs(blob, `tickets-${this.year}-${this.activeEventId}.csv`));
   }
 
   protected downloadPdf(ticket?: Ticket): void {
-    this.ticketsAdminService.downloadPdf(this.year, ticket ? { code: ticket.codigo } : undefined).subscribe((blob) => saveAs(blob, ticket ? `entrada-${ticket.codigo}.pdf` : `entradas-${this.year}.pdf`));
+    if (!this.requireActiveEvent()) return;
+    this.ticketsAdminService.downloadPdf(this.year, ticket ? { code: ticket.codigo, eventId: this.activeEventId } : { eventId: this.activeEventId }).subscribe((blob) => saveAs(blob, ticket ? `entrada-${ticket.codigo}.pdf` : `entradas-${this.year}.pdf`));
   }
 
   protected downloadBatchPdf(batchId: string): void {
-    this.ticketsAdminService.downloadPdf(this.year, { batchId }).subscribe((blob) => saveAs(blob, `entradas-${batchId}.pdf`));
+    if (!this.requireActiveEvent()) return;
+    this.ticketsAdminService.downloadPdf(this.year, { batchId, eventId: this.activeEventId }).subscribe((blob) => saveAs(blob, `entradas-${batchId}.pdf`));
+  }
+
+  protected get activeEvent(): TicketEvent | null {
+    return this.events.find((event) => event.id === this.activeEventId) ?? null;
+  }
+
+  protected loadEvents(): void {
+    this.eventLoading = true;
+    this.ticketsAdminService.listEvents(this.year).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.events = data;
+          const storedExists = this.activeEventId && data.some((event) => event.id === this.activeEventId);
+          this.activeEventId = storedExists ? this.activeEventId : data[0]?.id ?? null;
+          if (this.activeEventId) {
+            sessionStorage.setItem(ACTIVE_EVENT_STORAGE_KEY, this.activeEventId);
+          }
+          this.eventLoading = false;
+          this.refresh();
+        });
+      },
+      error: () => {
+        this.applyViewUpdate(() => {
+          this.eventLoading = false;
+          this.setMessage('No se han podido cargar los eventos.', 'error');
+        });
+      }
+    });
+  }
+
+  protected selectEvent(eventId: string): void {
+    this.activeEventId = eventId;
+    sessionStorage.setItem(ACTIVE_EVENT_STORAGE_KEY, eventId);
+    this.currentPage = 1;
+    this.expandedTicketCode = null;
+    this.expandedBatchId = null;
+    this.refresh();
+  }
+
+  protected createEvent(): void {
+    const nombre = this.eventForm.nombre.trim();
+    if (!nombre) {
+      this.setMessage('Indica el nombre del evento.', 'warning');
+      return;
+    }
+    this.eventLoading = true;
+    this.ticketsAdminService.createEvent({
+      nombre,
+      descripcion: this.eventForm.descripcion.trim() || null,
+      fechaEvento: this.eventForm.fechaEvento || null,
+      estado: this.eventForm.estado
+    }, this.year).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.events = [data, ...this.events.filter((event) => event.id !== data.id)];
+          this.eventForm = { nombre: '', descripcion: '', fechaEvento: '', estado: 'activo' };
+          this.eventFormOpen = false;
+          this.eventLoading = false;
+          this.selectEvent(data.id);
+          this.setMessage('Evento creado.', 'success');
+        });
+      },
+      error: (error) => {
+        this.eventLoading = false;
+        this.handleError(error, 'No se ha podido crear el evento.');
+      }
+    });
   }
 
   protected get batchSummaries(): Array<{ batchId: string; total: number; active: number; validated: number; tickets: Ticket[] }> {
@@ -460,6 +555,21 @@ export class BackofficeComponent implements OnInit {
     this.messageTone = tone;
     this.loading = false;
     this.changeDetectorRef.detectChanges();
+  }
+
+  private requireActiveEvent(): boolean {
+    if (this.activeEventId) {
+      return true;
+    }
+    this.setMessage('Selecciona o crea un evento antes de gestionar entradas.', 'warning');
+    return false;
+  }
+
+  private resetTicketContext(): void {
+    this.stats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
+    this.tickets = [];
+    this.cursor = null;
+    this.listLoading = false;
   }
 
   private trackingTone(log: TrackingLog): 'success' | 'error' | 'warning' | 'info' | 'neutral' {

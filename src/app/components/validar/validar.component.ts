@@ -29,6 +29,7 @@ export class ValidarComponent {
   private reopenScannerAfterResult = false;
 
   @Input() embedded = false;
+  @Input() eventId: string | null = sessionStorage.getItem('ffsj-tickets-active-event-id');
 
   @Input()
   set selectedYear(value: string | number | null | undefined) {
@@ -71,7 +72,7 @@ export class ValidarComponent {
     this.scannerOpen = false;
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
-    this.ticketsAdminService.validate(code, this.year).subscribe({
+    this.ticketsAdminService.validate(code, this.year, this.eventId).subscribe({
       next: ({ data }) => {
         this.result = data;
         this.loading = false;

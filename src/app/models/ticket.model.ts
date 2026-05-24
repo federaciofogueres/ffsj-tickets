@@ -9,6 +9,7 @@ export interface ApiResponse<T> {
 }
 
 export interface Ticket {
+  eventId: string | null;
   codigo: string;
   activada: boolean;
   activadaAt: string | null;
@@ -62,6 +63,17 @@ export interface AdminStats {
   totalValidadas: number;
   totalBloqueadas: number;
   totalLotes: number;
+}
+
+export interface TicketEvent {
+  id: string;
+  year: string;
+  nombre: string;
+  descripcion: string | null;
+  fechaEvento: string | null;
+  estado: 'activo' | 'finalizado';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface TrackingLog {
