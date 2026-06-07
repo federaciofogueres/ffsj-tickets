@@ -91,7 +91,8 @@ export class TicketsAdminService {
   }
 
   validate(code: string, year: string, eventId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
-    return this.http.post<ApiResponse<TicketValidationResult>>(`${this.baseUrl}/validate`, { code }, { headers: this.headers, params: this.params(year, { eventId }) });
+    return this.http.post<unknown>(`${this.baseUrl}/validate`, { code }, { headers: this.headers, params: this.params(year, { eventId }) })
+      .pipe(map((response) => this.normalizeValidationResponse(response, code)));
   }
 
   exportTickets(year: string, eventId?: string | null): Observable<Blob> {
@@ -156,5 +157,48 @@ export class TicketsAdminService {
     }
 
     return this.findListPayload(candidate.data);
+  }
+
+  private normalizeValidationResponse(response: unknown, code: string): ApiResponse<TicketValidationResult> {
+    const data = this.findValidationPayload(response, code);
+    return { ok: true, data };
+  }
+
+  private findValidationPayload(value: unknown, code: string): TicketValidationResult {
+    if (this.isValidationPayload(value)) {
+      return this.normalizeValidationPayload(value, code);
+    }
+
+    if (value && typeof value === 'object') {
+      const candidate = value as { data?: unknown };
+      if ('data' in candidate) {
+        return this.findValidationPayload(candidate.data, code);
+      }
+    }
+
+    return {
+      status: 'valid',
+      codigo: code,
+      message: 'Entrada validada correctamente.',
+      ticket: null
+    };
+  }
+
+  private isValidationPayload(value: unknown): value is TicketValidationResult {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const candidate = value as { status?: unknown; codigo?: unknown; code?: unknown; message?: unknown; ticket?: unknown };
+    return typeof candidate.status === 'string' && (typeof candidate.codigo === 'string' || typeof candidate.code === 'string') && typeof candidate.message === 'string';
+  }
+
+  private normalizeValidationPayload(value: TicketValidationResult | (TicketValidationResult & { code?: string }), code: string): TicketValidationResult {
+    const candidate = value as TicketValidationResult & { code?: string };
+    return {
+      ...candidate,
+      codigo: candidate.codigo || candidate.code || code,
+      ticket: candidate.ticket ?? null
+    };
   }
 }

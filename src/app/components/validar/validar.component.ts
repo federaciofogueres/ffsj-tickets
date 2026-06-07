@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
+import { finalize } from 'rxjs/operators';
 
 import { TicketValidationResult } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
@@ -72,10 +73,13 @@ export class ValidarComponent {
     this.scannerOpen = false;
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
-    this.ticketsAdminService.validate(code, this.year, this.eventId).subscribe({
-      next: ({ data }) => {
-        this.result = data;
+    this.ticketsAdminService.validate(code, this.year, this.eventId).pipe(
+      finalize(() => {
         this.loading = false;
+      })
+    ).subscribe({
+      next: (response) => {
+        this.result = response.data;
       },
       error: (error) => {
         this.result = {
@@ -84,7 +88,6 @@ export class ValidarComponent {
           message: error?.error?.error?.message || 'No se ha podido validar la entrada.',
           ticket: null
         };
-        this.loading = false;
       }
     });
   }
