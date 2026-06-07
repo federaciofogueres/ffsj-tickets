@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, NgZone, OnDestroy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
@@ -19,9 +19,11 @@ const VALIDATION_TIMEOUT_MS = 15000;
   templateUrl: './validar.component.html',
   styleUrl: './validar.component.scss'
 })
-export class ValidarComponent {
+export class ValidarComponent implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly ticketsAdminService = inject(TicketsAdminService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly ngZone = inject(NgZone);
 
   protected readonly formats = [BarcodeFormat.QR_CODE];
   protected year = String(new Date().getFullYear());
@@ -33,6 +35,20 @@ export class ValidarComponent {
   protected debugEntries: string[] = [];
   private lastScanned = '';
   private reopenScannerAfterResult = false;
+  private validationRun = 0;
+  private validationWatchdogId: number | null = null;
+  private readonly unhandledRejectionHandler = (event: PromiseRejectionEvent) => {
+    const message = this.debugString(this.errorDebugInfo(event.reason));
+    if (!message.includes('setPhotoOptions')) {
+      return;
+    }
+
+    event.preventDefault();
+    this.ngZone.run(() => {
+      this.addDebug(`global camera promise ignored ${message}`);
+      this.changeDetectorRef.detectChanges();
+    });
+  };
 
   @Input() embedded = false;
   @Input() eventId: string | null = sessionStorage.getItem('ffsj-tickets-active-event-id');
@@ -45,6 +61,8 @@ export class ValidarComponent {
   }
 
   constructor() {
+    window.addEventListener('unhandledrejection', this.unhandledRejectionHandler);
+
     const queryCode = this.route.snapshot.queryParamMap.get('code');
     const queryYear = this.route.snapshot.queryParamMap.get('year');
     if (queryYear) {
@@ -56,9 +74,14 @@ export class ValidarComponent {
     }
   }
 
+  ngOnDestroy(): void {
+    window.removeEventListener('unhandledrejection', this.unhandledRejectionHandler);
+    this.clearValidationWatchdog();
+  }
+
   protected onScan(value: string): void {
-    if (this.loading || this.lastScanned === value) {
-      this.addDebug(`scan ignored loading=${this.loading} duplicate=${this.lastScanned === value}`);
+    if (this.loading || this.result || this.lastScanned === value) {
+      this.addDebug(`scan ignored loading=${this.loading} result=${!!this.result} duplicate=${this.lastScanned === value}`);
       return;
     }
     this.lastScanned = value;
@@ -81,15 +104,19 @@ export class ValidarComponent {
     }
 
     this.loading = true;
-    this.scannerOpen = false;
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
+    const runId = ++this.validationRun;
+    this.startValidationWatchdog(runId, code);
     this.addDebug(`request POST ${environment.adminApiBaseUrl}/validate year=${this.year} eventId=${this.eventId || '(none)'}`);
     this.ticketsAdminService.validate(code, this.year, this.eventId).pipe(
       timeout(VALIDATION_TIMEOUT_MS),
       finalize(() => {
-        this.loading = false;
-        this.addDebug('request finalized loading=false');
+        if (this.validationRun === runId) {
+          this.clearValidationWatchdog();
+          this.loading = false;
+          this.addDebug('request finalized loading=false');
+        }
       })
     ).subscribe({
       next: (response) => {
@@ -120,6 +147,14 @@ export class ValidarComponent {
 
   protected clearDebug(): void {
     this.debugEntries = [];
+  }
+
+  protected onScanError(error: Error): void {
+    this.addDebug(`scan error ${this.debugString(this.errorDebugInfo(error))}`);
+  }
+
+  protected onPermissionResponse(hasPermission: boolean): void {
+    this.addDebug(`camera permission=${hasPermission}`);
   }
 
   protected get resultTone(): 'success' | 'warning' | 'error' {
@@ -199,5 +234,35 @@ export class ValidarComponent {
       url: candidate.url,
       error: candidate.error
     };
+  }
+
+  private startValidationWatchdog(runId: number, code: string): void {
+    this.clearValidationWatchdog();
+    this.validationWatchdogId = window.setTimeout(() => {
+      this.ngZone.run(() => {
+        if (!this.loading || this.validationRun !== runId) {
+          return;
+        }
+
+        this.loading = false;
+        this.addDebug(`native watchdog stopped loading after ${VALIDATION_TIMEOUT_MS}ms`);
+        this.result = {
+          status: 'invalid',
+          codigo: code,
+          message: 'La validacion no ha devuelto resultado en el tiempo esperado. Revisa el log de debug.',
+          ticket: null
+        };
+        this.changeDetectorRef.detectChanges();
+      });
+    }, VALIDATION_TIMEOUT_MS);
+  }
+
+  private clearValidationWatchdog(): void {
+    if (this.validationWatchdogId === null) {
+      return;
+    }
+
+    window.clearTimeout(this.validationWatchdogId);
+    this.validationWatchdogId = null;
   }
 }

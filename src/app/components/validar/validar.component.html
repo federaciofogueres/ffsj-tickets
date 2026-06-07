@@ -18,7 +18,13 @@
       </div>
 
       @if (scannerOpen) {
-      <zxing-scanner [formats]="formats" (scanSuccess)="onScan($event)"></zxing-scanner>
+      <zxing-scanner
+        [formats]="formats"
+        [autofocusEnabled]="false"
+        (permissionResponse)="onPermissionResponse($event)"
+        (scanError)="onScanError($event)"
+        (scanSuccess)="onScan($event)">
+      </zxing-scanner>
       } @else {
       <div class="scanner-placeholder">
         <i class="bi bi-qr-code-scan"></i>
