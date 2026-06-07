@@ -4,10 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
-import { finalize } from 'rxjs/operators';
+import { finalize, timeout } from 'rxjs/operators';
 
 import { TicketValidationResult } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
+import { environment } from '../../../environments/environment';
+
+const VALIDATION_TIMEOUT_MS = 15000;
 
 @Component({
   selector: 'app-validar',
@@ -26,6 +29,8 @@ export class ValidarComponent {
   protected scannerOpen = false;
   protected loading = false;
   protected result: TicketValidationResult | null = null;
+  protected debugOpen = true;
+  protected debugEntries: string[] = [];
   private lastScanned = '';
   private reopenScannerAfterResult = false;
 
@@ -53,19 +58,25 @@ export class ValidarComponent {
 
   protected onScan(value: string): void {
     if (this.loading || this.lastScanned === value) {
+      this.addDebug(`scan ignored loading=${this.loading} duplicate=${this.lastScanned === value}`);
       return;
     }
     this.lastScanned = value;
+    this.addDebug(`scan success raw=${this.debugString(value)}`);
     this.validate(value, true);
     window.setTimeout(() => {
       this.lastScanned = '';
+      this.addDebug('scan duplicate guard cleared');
     }, 1800);
   }
 
   protected validate(rawCode = this.code, reopenScannerAfterResult = false): void {
+    this.addDebug(`validate start raw=${this.debugString(rawCode)}`);
     const code = this.extractCode(rawCode);
+    this.addDebug(`extracted code=${code || '(empty)'}`);
     if (!code) {
       this.result = { status: 'invalid', codigo: '', message: 'No se ha leido ningun codigo.', ticket: null };
+      this.addDebug('validate stopped: empty code');
       return;
     }
 
@@ -73,15 +84,20 @@ export class ValidarComponent {
     this.scannerOpen = false;
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
+    this.addDebug(`request POST ${environment.adminApiBaseUrl}/validate year=${this.year} eventId=${this.eventId || '(none)'}`);
     this.ticketsAdminService.validate(code, this.year, this.eventId).pipe(
+      timeout(VALIDATION_TIMEOUT_MS),
       finalize(() => {
         this.loading = false;
+        this.addDebug('request finalized loading=false');
       })
     ).subscribe({
       next: (response) => {
+        this.addDebug(`response next ${this.debugString(response)}`);
         this.result = response.data;
       },
       error: (error) => {
+        this.addDebug(`response error ${this.debugString(this.errorDebugInfo(error))}`);
         this.result = {
           status: 'invalid',
           codigo: code,
@@ -94,10 +110,16 @@ export class ValidarComponent {
 
   protected clearResult(): void {
     this.result = null;
+    this.addDebug('result closed');
     if (this.reopenScannerAfterResult) {
       this.scannerOpen = true;
       this.reopenScannerAfterResult = false;
+      this.addDebug('scanner reopened after result');
     }
+  }
+
+  protected clearDebug(): void {
+    this.debugEntries = [];
   }
 
   protected get resultTone(): 'success' | 'warning' | 'error' {
@@ -140,5 +162,42 @@ export class ValidarComponent {
     } catch {
       return trimmed.toUpperCase();
     }
+  }
+
+  private addDebug(message: string): void {
+    const time = new Date().toLocaleTimeString('es-ES', { hour12: false });
+    this.debugEntries = [`${time} ${message}`, ...this.debugEntries].slice(0, 30);
+  }
+
+  private debugString(value: unknown): string {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  private errorDebugInfo(error: unknown): unknown {
+    if (!error || typeof error !== 'object') {
+      return error;
+    }
+
+    const candidate = error as {
+      name?: unknown;
+      message?: unknown;
+      status?: unknown;
+      statusText?: unknown;
+      url?: unknown;
+      error?: unknown;
+    };
+
+    return {
+      name: candidate.name,
+      message: candidate.message,
+      status: candidate.status,
+      statusText: candidate.statusText,
+      url: candidate.url,
+      error: candidate.error
+    };
   }
 }

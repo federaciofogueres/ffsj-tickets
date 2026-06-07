@@ -37,6 +37,25 @@
     </article>
   </section>
 
+  <section class="debug-panel">
+    <div class="debug-header">
+      <h2>Debug validacion</h2>
+      <div class="debug-actions">
+        <button type="button" (click)="debugOpen = !debugOpen">{{ debugOpen ? 'Ocultar' : 'Ver' }}</button>
+        <button type="button" (click)="clearDebug()">Limpiar</button>
+      </div>
+    </div>
+    @if (debugOpen) {
+    <ol class="debug-log">
+      @for (entry of debugEntries; track entry) {
+      <li>{{ entry }}</li>
+      } @empty {
+      <li>Sin eventos todavia.</li>
+      }
+    </ol>
+    }
+  </section>
+
   @if (result) {
   <section class="result-overlay" [ngClass]="'result-overlay-' + resultTone" role="status" aria-live="assertive">
     <div class="result-card">
@@ -92,6 +111,13 @@
       <span class="scan-spinner" aria-hidden="true"></span>
       <h2>Validando entrada</h2>
       <p>{{ code || 'Leyendo codigo QR...' }}</p>
+      <ol class="debug-log debug-log-loading">
+        @for (entry of debugEntries; track entry) {
+        <li>{{ entry }}</li>
+        } @empty {
+        <li>Sin eventos todavia.</li>
+        }
+      </ol>
     </div>
   </section>
   }
