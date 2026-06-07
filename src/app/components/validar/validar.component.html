@@ -117,6 +117,7 @@
       <span class="scan-spinner" aria-hidden="true"></span>
       <h2>Validando entrada</h2>
       <p>{{ code || 'Leyendo codigo QR...' }}</p>
+      <button type="button" class="loading-close-button" (click)="forceCloseLoading()">Cerrar carga</button>
       <ol class="debug-log debug-log-loading">
         @for (entry of debugEntries; track entry) {
         <li>{{ entry }}</li>

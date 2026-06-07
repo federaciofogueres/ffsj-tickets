@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
-import { finalize, timeout } from 'rxjs/operators';
 
 import { TicketValidationResult } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
@@ -93,7 +92,7 @@ export class ValidarComponent implements OnDestroy {
     }, 1800);
   }
 
-  protected validate(rawCode = this.code, reopenScannerAfterResult = false): void {
+  protected async validate(rawCode = this.code, reopenScannerAfterResult = false): Promise<void> {
     this.addDebug(`validate start raw=${this.debugString(rawCode)}`);
     const code = this.extractCode(rawCode);
     this.addDebug(`extracted code=${code || '(empty)'}`);
@@ -107,32 +106,56 @@ export class ValidarComponent implements OnDestroy {
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
     const runId = ++this.validationRun;
+    const controller = new AbortController();
     this.startValidationWatchdog(runId, code);
     this.addDebug(`request POST ${environment.adminApiBaseUrl}/validate year=${this.year} eventId=${this.eventId || '(none)'}`);
-    this.ticketsAdminService.validate(code, this.year, this.eventId).pipe(
-      timeout(VALIDATION_TIMEOUT_MS),
-      finalize(() => {
-        if (this.validationRun === runId) {
-          this.clearValidationWatchdog();
-          this.loading = false;
-          this.addDebug('request finalized loading=false');
+
+    const abortId = window.setTimeout(() => controller.abort(), VALIDATION_TIMEOUT_MS);
+    try {
+      const response = await this.ticketsAdminService.validateAsync(code, this.year, this.eventId, controller.signal);
+      this.ngZone.run(() => {
+        if (this.validationRun !== runId) {
+          this.addDebug(`response ignored stale run=${runId}`);
+          return;
         }
-      })
-    ).subscribe({
-      next: (response) => {
         this.addDebug(`response next ${this.debugString(response)}`);
         this.result = response.data;
-      },
-      error: (error) => {
+      });
+    } catch (error) {
+      this.ngZone.run(() => {
         this.addDebug(`response error ${this.debugString(this.errorDebugInfo(error))}`);
         this.result = {
           status: 'invalid',
           codigo: code,
-          message: error?.error?.error?.message || 'No se ha podido validar la entrada.',
+          message: this.validationErrorMessage(error),
           ticket: null
         };
-      }
-    });
+      });
+    } finally {
+      window.clearTimeout(abortId);
+      this.ngZone.run(() => {
+        if (this.validationRun === runId) {
+          this.clearValidationWatchdog();
+          this.loading = false;
+          this.addDebug('request finally loading=false');
+        }
+        this.changeDetectorRef.detectChanges();
+      });
+    }
+  }
+
+  protected forceCloseLoading(): void {
+    this.loading = false;
+    this.addDebug('loading force-closed by user');
+    if (!this.result && this.code) {
+      this.result = {
+        status: 'invalid',
+        codigo: this.code,
+        message: 'Carga cerrada manualmente. La API puede haber respondido; revisa Network o el listado.',
+        ticket: null
+      };
+    }
+    this.changeDetectorRef.detectChanges();
   }
 
   protected clearResult(): void {
@@ -234,6 +257,18 @@ export class ValidarComponent implements OnDestroy {
       url: candidate.url,
       error: candidate.error
     };
+  }
+
+  private validationErrorMessage(error: unknown): string {
+    if (error && typeof error === 'object') {
+      const candidate = error as { error?: { error?: { message?: unknown }; message?: unknown }; message?: unknown };
+      const message = candidate.error?.error?.message ?? candidate.error?.message ?? candidate.message;
+      if (typeof message === 'string' && message.trim()) {
+        return message;
+      }
+    }
+
+    return 'No se ha podido validar la entrada.';
   }
 
   private startValidationWatchdog(runId: number, code: string): void {

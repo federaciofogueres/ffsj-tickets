@@ -239,6 +239,12 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.loading-close-button {
+  background: #0f172a;
+  color: #ffffff;
+  min-height: 42px;
+}
+
 .scan-spinner {
   animation: spin 0.85s linear infinite;
   border: 6px solid #fee2e2;

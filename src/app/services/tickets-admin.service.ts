@@ -93,23 +93,7 @@ export class TicketsAdminService {
   validate(code: string, year: string, eventId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
     return new Observable<ApiResponse<TicketValidationResult>>((subscriber) => {
       const controller = new AbortController();
-      const params = this.params(year, { eventId }).toString();
-      const headers = this.fetchHeaders();
-
-      fetch(`${this.baseUrl}/validate?${params}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ code }),
-        signal: controller.signal
-      })
-        .then(async (response) => {
-          const raw = await this.readJsonResponse(response);
-          if (!response.ok) {
-            throw raw;
-          }
-
-          return this.normalizeValidationResponse(raw, code);
-        })
+      this.validateAsync(code, year, eventId, controller.signal)
         .then((response) => {
           subscriber.next(response);
           subscriber.complete();
@@ -122,6 +106,22 @@ export class TicketsAdminService {
 
       return () => controller.abort();
     });
+  }
+
+  async validateAsync(code: string, year: string, eventId?: string | null, signal?: AbortSignal): Promise<ApiResponse<TicketValidationResult>> {
+    const params = this.params(year, { eventId }).toString();
+    const response = await fetch(`${this.baseUrl}/validate?${params}`, {
+      method: 'POST',
+      headers: this.fetchHeaders(),
+      body: JSON.stringify({ code }),
+      signal
+    });
+    const raw = await this.readJsonResponse(response);
+    if (!response.ok) {
+      throw raw;
+    }
+
+    return this.normalizeValidationResponse(raw, code);
   }
 
   exportTickets(year: string, eventId?: string | null): Observable<Blob> {
