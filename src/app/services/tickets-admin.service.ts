@@ -91,8 +91,37 @@ export class TicketsAdminService {
   }
 
   validate(code: string, year: string, eventId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
-    return this.http.post<unknown>(`${this.baseUrl}/validate`, { code }, { headers: this.headers, params: this.params(year, { eventId }) })
-      .pipe(map((response) => this.normalizeValidationResponse(response, code)));
+    return new Observable<ApiResponse<TicketValidationResult>>((subscriber) => {
+      const controller = new AbortController();
+      const params = this.params(year, { eventId }).toString();
+      const headers = this.fetchHeaders();
+
+      fetch(`${this.baseUrl}/validate?${params}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ code }),
+        signal: controller.signal
+      })
+        .then(async (response) => {
+          const raw = await this.readJsonResponse(response);
+          if (!response.ok) {
+            throw raw;
+          }
+
+          return this.normalizeValidationResponse(raw, code);
+        })
+        .then((response) => {
+          subscriber.next(response);
+          subscriber.complete();
+        })
+        .catch((error) => {
+          if (!subscriber.closed) {
+            subscriber.error(error);
+          }
+        });
+
+      return () => controller.abort();
+    });
   }
 
   exportTickets(year: string, eventId?: string | null): Observable<Blob> {
@@ -184,21 +213,72 @@ export class TicketsAdminService {
     };
   }
 
-  private isValidationPayload(value: unknown): value is TicketValidationResult {
+  private isValidationPayload(value: unknown): value is TicketValidationResult | (Partial<TicketValidationResult> & { code?: string }) {
     if (!value || typeof value !== 'object') {
       return false;
     }
 
-    const candidate = value as { status?: unknown; codigo?: unknown; code?: unknown; message?: unknown; ticket?: unknown };
-    return typeof candidate.status === 'string' && (typeof candidate.codigo === 'string' || typeof candidate.code === 'string') && typeof candidate.message === 'string';
+    const candidate = value as { status?: unknown; codigo?: unknown; code?: unknown };
+    return typeof candidate.status === 'string' && (typeof candidate.codigo === 'string' || typeof candidate.code === 'string');
   }
 
-  private normalizeValidationPayload(value: TicketValidationResult | (TicketValidationResult & { code?: string }), code: string): TicketValidationResult {
-    const candidate = value as TicketValidationResult & { code?: string };
+  private normalizeValidationPayload(value: TicketValidationResult | (Partial<TicketValidationResult> & { code?: string }), code: string): TicketValidationResult {
+    const candidate = value as Partial<TicketValidationResult> & { code?: string };
+    const status = this.normalizeValidationStatus(candidate.status);
     return {
       ...candidate,
+      status,
       codigo: candidate.codigo || candidate.code || code,
+      message: candidate.message || this.validationMessage(status),
       ticket: candidate.ticket ?? null
     };
+  }
+
+  private fetchHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const token = this.authService.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (environment.adminApiKey) {
+      headers['x-admin-key'] = environment.adminApiKey;
+    }
+    return headers;
+  }
+
+  private async readJsonResponse(response: Response): Promise<unknown> {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
+  private normalizeValidationStatus(status: unknown): TicketValidationResult['status'] {
+    if (status === 'valid' || status === 'invalid' || status === 'inactive' || status === 'blocked' || status === 'used') {
+      return status;
+    }
+
+    return 'invalid';
+  }
+
+  private validationMessage(status: TicketValidationResult['status']): string {
+    switch (status) {
+      case 'valid':
+        return 'Entrada validada correctamente.';
+      case 'used':
+        return 'Entrada ya validada.';
+      case 'inactive':
+        return 'Entrada no activada.';
+      case 'blocked':
+        return 'Entrada bloqueada.';
+      default:
+        return 'Validacion rechazada.';
+    }
   }
 }
