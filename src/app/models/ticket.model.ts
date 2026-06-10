@@ -10,6 +10,9 @@ export interface ApiResponse<T> {
 
 export interface Ticket {
   eventId: string | null;
+  zoneId?: string | null;
+  zoneName?: string | null;
+  zoneColor?: string | null;
   codigo: string;
   activada: boolean;
   activadaAt: string | null;
@@ -42,7 +45,7 @@ export interface TicketEmailResult {
 }
 
 export interface TicketValidationResult {
-  status: 'valid' | 'invalid' | 'inactive' | 'blocked' | 'used';
+  status: 'valid' | 'invalid' | 'inactive' | 'blocked' | 'used' | 'wrong_zone';
   codigo: string;
   message: string;
   ticket: Ticket | null;
@@ -74,6 +77,25 @@ export interface TicketEvent {
   estado: 'activo' | 'finalizado';
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TicketAccessZone {
+  id: string;
+  eventId: string;
+  nombre: string;
+  colorHex: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TicketZoneSummary {
+  zoneId: string | null;
+  zoneName: string;
+  total: number;
+  active: number;
+  available: number;
+  validated: number;
+  blocked: number;
 }
 
 export interface TrackingLog {

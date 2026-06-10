@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, Input, NgZone, OnDestroy, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 
-import { TicketValidationResult } from '../../models/ticket.model';
+import { TicketAccessZone, TicketValidationResult } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
 import { environment } from '../../../environments/environment';
 
@@ -18,7 +18,7 @@ const VALIDATION_TIMEOUT_MS = 15000;
   templateUrl: './validar.component.html',
   styleUrl: './validar.component.scss'
 })
-export class ValidarComponent implements OnDestroy {
+export class ValidarComponent implements OnDestroy, OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly ticketsAdminService = inject(TicketsAdminService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
@@ -33,6 +33,7 @@ export class ValidarComponent implements OnDestroy {
   protected debugOpen = true;
   protected debugEntries: string[] = [];
   private lastScanned = '';
+  private accessZones: TicketAccessZone[] = [];
   private reopenScannerAfterResult = false;
   private validationRun = 0;
   private validationWatchdogId: number | null = null;
@@ -51,6 +52,19 @@ export class ValidarComponent implements OnDestroy {
 
   @Input() embedded = false;
   @Input() eventId: string | null = sessionStorage.getItem('ffsj-tickets-active-event-id');
+  @Input() selectedZoneId = '';
+
+  @Input()
+  set zones(value: TicketAccessZone[] | null | undefined) {
+    this.accessZones = value ?? [];
+    if (!this.accessZones.some((zone) => zone.id === this.selectedZoneId)) {
+      this.selectedZoneId = this.accessZones[0]?.id ?? '';
+    }
+  }
+
+  get zones(): TicketAccessZone[] {
+    return this.accessZones;
+  }
 
   @Input()
   set selectedYear(value: string | number | null | undefined) {
@@ -71,6 +85,10 @@ export class ValidarComponent implements OnDestroy {
       this.code = queryCode;
       this.validate(queryCode);
     }
+  }
+
+  ngOnInit(): void {
+    this.loadZonesIfNeeded();
   }
 
   ngOnDestroy(): void {
@@ -105,14 +123,20 @@ export class ValidarComponent implements OnDestroy {
     this.loading = true;
     this.reopenScannerAfterResult = reopenScannerAfterResult;
     this.code = code;
+    if (this.hasZones && !this.selectedZoneId) {
+      this.result = { status: 'wrong_zone', codigo: code, message: 'Selecciona la zona de acceso del validador.', ticket: null };
+      this.loading = false;
+      this.addDebug('validate stopped: missing validator zone');
+      return;
+    }
     const runId = ++this.validationRun;
     const controller = new AbortController();
     this.startValidationWatchdog(runId, code);
-    this.addDebug(`request POST ${environment.adminApiBaseUrl}/validate year=${this.year} eventId=${this.eventId || '(none)'}`);
+    this.addDebug(`request POST ${environment.adminApiBaseUrl}/validate year=${this.year} eventId=${this.eventId || '(none)'} zoneId=${this.selectedZoneId || '(none)'}`);
 
     const abortId = window.setTimeout(() => controller.abort(), VALIDATION_TIMEOUT_MS);
     try {
-      const response = await this.ticketsAdminService.validateAsync(code, this.year, this.eventId, controller.signal);
+      const response = await this.ticketsAdminService.validateAsync(code, this.year, this.eventId, this.selectedZoneId || null, controller.signal);
       this.ngZone.run(() => {
         if (this.validationRun !== runId) {
           this.addDebug(`response ignored stale run=${runId}`);
@@ -188,6 +212,14 @@ export class ValidarComponent implements OnDestroy {
       return 'warning';
     }
     return 'error';
+  }
+
+  protected get hasZones(): boolean {
+    return this.zones.length > 0;
+  }
+
+  protected get selectedZoneName(): string {
+    return this.zones.find((zone) => zone.id === this.selectedZoneId)?.nombre || 'Sin zona';
   }
 
   protected get resultTitle(): string {
@@ -299,5 +331,19 @@ export class ValidarComponent implements OnDestroy {
 
     window.clearTimeout(this.validationWatchdogId);
     this.validationWatchdogId = null;
+  }
+
+  private loadZonesIfNeeded(): void {
+    if (this.accessZones.length || !this.eventId) {
+      return;
+    }
+
+    this.ticketsAdminService.listZones(this.year, this.eventId).subscribe({
+      next: ({ data }) => {
+        this.zones = data;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: () => undefined
+    });
   }
 }

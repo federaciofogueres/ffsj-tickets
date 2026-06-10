@@ -131,6 +131,32 @@
       </article>
     </section>
 
+    @if (activeEvent && hasZones) {
+    <section class="panel-card zone-summary-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Zonas de acceso</p>
+          <h2>Entradas por zona</h2>
+        </div>
+        <button type="button" class="ghost-btn" (click)="loadZoneSummaryTickets()">Refrescar</button>
+      </div>
+      <div class="zone-summary-grid">
+        @for (summary of zoneSummaries; track summary.zoneId || 'without-zone') {
+        <article class="zone-summary-card">
+          <strong>{{ summary.zoneName }}</strong>
+          <dl>
+            <div><dt>Total</dt><dd>{{ summary.total }}</dd></div>
+            <div><dt>Activas</dt><dd>{{ summary.active }}</dd></div>
+            <div><dt>Disponibles</dt><dd>{{ summary.available }}</dd></div>
+            <div><dt>Validadas</dt><dd>{{ summary.validated }}</dd></div>
+            <div><dt>Bloqueadas</dt><dd>{{ summary.blocked }}</dd></div>
+          </dl>
+        </article>
+        }
+      </div>
+    </section>
+    }
+
     @if (message) {
     <p class="message" [ngClass]="'message-' + messageTone">{{ message }}</p>
     }
@@ -149,6 +175,9 @@
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'activate'" (click)="setTab('activate')">
         Activacion de tickets
       </button>
+      <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'zones'" (click)="setTab('zones')">
+        Zonas
+      </button>
     </section>
 
     @if (tab === 'generate') {
@@ -160,6 +189,16 @@
           <span>Codigo</span>
           <input type="text" [(ngModel)]="ticketForm.codigo" placeholder="FFSJ-0001">
         </label>
+        @if (hasZones) {
+        <label class="field">
+          <span>Zona de acceso</span>
+          <select [(ngModel)]="ticketForm.zoneId">
+            @for (zone of zones; track zone.id) {
+            <option [value]="zone.id">{{ zone.nombre }}</option>
+            }
+          </select>
+        </label>
+        }
         <label class="checkbox-row">
           <input type="checkbox" [(ngModel)]="ticketForm.bloqueada">
           <span>Crear ticket bloqueado</span>
@@ -185,6 +224,16 @@
             <input type="text" [(ngModel)]="batchForm.prefix" placeholder="FFSJ">
           </label>
         </div>
+        @if (hasZones) {
+        <label class="field">
+          <span>Zona de acceso</span>
+          <select [(ngModel)]="batchForm.zoneId">
+            @for (zone of zones; track zone.id) {
+            <option [value]="zone.id">{{ zone.nombre }}</option>
+            }
+          </select>
+        </label>
+        }
         <button type="button" class="secondary-btn compact-action" [disabled]="loading" (click)="generateBatch()">Generar lote</button>
         <button type="button" class="primary-btn stacked-action" [disabled]="loading" (click)="generateBatch()">
           Generar lote con entradas fisicas
@@ -217,6 +266,66 @@
         <h2>Plantilla PDF</h2>
         <p class="helper-copy">El PDF se genera con el diseño oficial de entradas FFSJ y QR de validacion.</p>
         <button type="button" class="secondary-btn compact-action" (click)="downloadPdf()">Descargar todos los tickets en PDF</button>
+      </article>
+    </section>
+    } @else if (tab === 'zones') {
+    <section class="admin-layout">
+      <article class="panel-card">
+        <p class="panel-kicker">{{ zoneForm.id ? 'Editar zona' : 'Nueva zona' }}</p>
+        <h2>Zonas de acceso</h2>
+        <label class="field">
+          <span>Nombre</span>
+          <input type="text" [(ngModel)]="zoneForm.nombre" placeholder="Zona A">
+        </label>
+        <div class="field">
+          <span>Color de la zona</span>
+          <div class="color-palette" role="group" aria-label="Color de la zona">
+            @for (color of zoneColorPalette; track color) {
+            <button type="button" class="color-swatch" [class.color-swatch-active]="zoneForm.colorHex === color"
+              [style.background]="color" [attr.aria-label]="'Color ' + color" (click)="selectZoneColor(color)">
+            </button>
+            }
+          </div>
+          <label class="color-input-row">
+            <span class="color-preview" [style.background]="zoneForm.colorHex"></span>
+            <input type="color" [(ngModel)]="zoneForm.colorHex" aria-label="Color personalizado">
+            <strong>{{ zoneForm.colorHex }}</strong>
+          </label>
+        </div>
+        <div class="actions-row">
+          <button type="button" class="primary-btn compact-action" [disabled]="zonesLoading" (click)="saveZone()">
+            {{ zoneForm.id ? 'Guardar cambios' : 'Crear zona' }}
+          </button>
+          @if (zoneForm.id) {
+          <button type="button" class="ghost-btn" (click)="cancelZoneEdit()">Cancelar</button>
+          }
+        </div>
+      </article>
+
+      <article class="panel-card">
+        <div class="panel-header">
+          <div>
+            <p class="panel-kicker">Zonas creadas</p>
+            <h2>{{ zones.length }} zonas</h2>
+          </div>
+          <button type="button" class="ghost-btn" [disabled]="zonesLoading" (click)="loadZones()">Refrescar</button>
+        </div>
+        <div class="zones-list">
+          @for (zone of zones; track zone.id) {
+          <article class="zone-row">
+            <span class="zone-name-with-color">
+              <span class="zone-color-dot" [style.background]="zone.colorHex"></span>
+              <strong>{{ zone.nombre }}</strong>
+            </span>
+            <div class="actions-row">
+              <button type="button" class="ghost-btn" (click)="editZone(zone)">Editar</button>
+              <button type="button" class="danger-btn" (click)="deleteZone(zone)">Eliminar</button>
+            </div>
+          </article>
+          } @empty {
+          <p class="helper-copy">Este evento todavia no tiene zonas de acceso.</p>
+          }
+        </div>
       </article>
     </section>
     } @else if (tab === 'activate') {
@@ -304,6 +413,7 @@
           <div class="record-expanded">
             <dl class="record-meta">
               <div><dt>Estado</dt><dd><span class="status-chip" [ngClass]="ticketStatusClass(ticket)">{{ ticketStatusLabel(ticket) }}</span></dd></div>
+              <div><dt>Zona</dt><dd>{{ ticket.zoneName || 'Sin zona' }}</dd></div>
               <div><dt>Lote</dt><dd>{{ ticket.batchId || 'Manual' }}</dd></div>
               <div><dt>Creado</dt><dd>{{ ticket.createdAt | date:'short' }}</dd></div>
               <div><dt>Activado</dt><dd>{{ ticket.activadaAt ? (ticket.activadaAt | date:'short') : 'No' }}</dd></div>
@@ -319,6 +429,17 @@
                 <input type="checkbox" [(ngModel)]="ticket.bloqueada">
                 <span>Bloqueada</span>
               </label>
+              @if (hasZones) {
+              <label class="field compact-field ticket-zone-select" (click)="$event.stopPropagation()">
+                <span>Zona</span>
+                <select [(ngModel)]="ticket.zoneId">
+                  <option [ngValue]="null">Sin zona</option>
+                  @for (zone of zones; track zone.id) {
+                  <option [value]="zone.id">{{ zone.nombre }}</option>
+                  }
+                </select>
+              </label>
+              }
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
               <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
@@ -344,6 +465,7 @@
           <div class="record-expanded">
             <dl class="record-meta">
               <div><dt>Total</dt><dd>{{ batch.total }}</dd></div>
+              <div><dt>Zona</dt><dd>{{ batch.tickets[0].zoneName || 'Sin zona' }}</dd></div>
               <div><dt>Activas</dt><dd>{{ batch.active }}</dd></div>
               <div><dt>Validadas</dt><dd>{{ batch.validated }}</dd></div>
             </dl>
@@ -377,7 +499,7 @@
     </section>
     }
     } @else if (section === 'validar') {
-    <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId"></app-validar>
+    <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId" [zones]="zones"></app-validar>
     } @else {
     <section class="panel-card records-panel tracking-panel">
       <div class="panel-header">

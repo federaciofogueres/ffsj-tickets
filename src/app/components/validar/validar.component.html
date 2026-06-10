@@ -35,6 +35,16 @@
 
     <article class="panel">
       <h2>Validacion manual</h2>
+      @if (hasZones) {
+      <label>
+        <span>Zona de acceso</span>
+        <select [(ngModel)]="selectedZoneId">
+          @for (zone of zones; track zone.id) {
+          <option [value]="zone.id">{{ zone.nombre }}</option>
+          }
+        </select>
+      </label>
+      }
       <label>
         <span>Codigo o URL</span>
         <input type="text" [(ngModel)]="code" (keyup.enter)="validate()" />
@@ -73,6 +83,18 @@
           <dt>Codigo QR</dt>
           <dd>{{ result.codigo || 'Sin codigo' }}</dd>
         </div>
+        @if (hasZones) {
+        <div>
+          <dt>Zona validador</dt>
+          <dd>{{ selectedZoneName }}</dd>
+        </div>
+        }
+        @if (result.ticket?.zoneName) {
+        <div>
+          <dt>Zona entrada</dt>
+          <dd>{{ result.ticket?.zoneName }}</dd>
+        </div>
+        }
         @if (result.summary) {
         <div>
           <dt>Total</dt>

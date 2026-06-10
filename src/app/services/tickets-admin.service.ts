@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
-import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TrackingLog } from '../models/ticket.model';
+import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketAccessZone, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TicketZoneSummary, TrackingLog } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -51,6 +51,26 @@ export class TicketsAdminService {
     return this.http.post<ApiResponse<TicketEvent>>(`${this.baseUrl}/eventos`, payload, { headers: this.headers, params: this.params(year) });
   }
 
+  listZones(year: string, eventId: string): Observable<ApiResponse<TicketAccessZone[]>> {
+    return this.http.get<ApiResponse<TicketAccessZone[]>>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}/zonas`, { headers: this.headers, params: this.params(year) });
+  }
+
+  statsByZone(year: string, eventId: string): Observable<ApiResponse<TicketZoneSummary[]>> {
+    return this.http.get<ApiResponse<TicketZoneSummary[]>>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}/zonas/stats`, { headers: this.headers, params: this.params(year) });
+  }
+
+  createZone(year: string, eventId: string, payload: { nombre: string; colorHex: string }): Observable<ApiResponse<TicketAccessZone>> {
+    return this.http.post<ApiResponse<TicketAccessZone>>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}/zonas`, payload, { headers: this.headers, params: this.params(year) });
+  }
+
+  updateZone(year: string, eventId: string, zoneId: string, payload: { nombre: string; colorHex: string }): Observable<ApiResponse<TicketAccessZone>> {
+    return this.http.put<ApiResponse<TicketAccessZone>>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}/zonas/${encodeURIComponent(zoneId)}`, payload, { headers: this.headers, params: this.params(year) });
+  }
+
+  deleteZone(year: string, eventId: string, zoneId: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}/zonas/${encodeURIComponent(zoneId)}`, { headers: this.headers, params: this.params(year) });
+  }
+
   statsForEvent(year: string, eventId: string | null): Observable<ApiResponse<AdminStats>> {
     return this.http.get<ApiResponse<AdminStats>>(`${this.baseUrl}/stats`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
@@ -62,11 +82,11 @@ export class TicketsAdminService {
     }).pipe(map((response) => this.normalizeListResponse(response)));
   }
 
-  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
     return this.http.post<ApiResponse<Ticket>>(`${this.baseUrl}/tickets`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
     return this.http.put<ApiResponse<Ticket>>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
@@ -78,7 +98,7 @@ export class TicketsAdminService {
     return this.http.delete<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean }, year: string, eventId?: string | null): Observable<ApiResponse<TicketBatchResult>> {
+  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<TicketBatchResult>> {
     return this.http.post<ApiResponse<TicketBatchResult>>(`${this.baseUrl}/tickets/generate`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
@@ -90,10 +110,10 @@ export class TicketsAdminService {
     return this.http.post<ApiResponse<TicketEmailResult>>(`${this.baseUrl}/tickets/email`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  validate(code: string, year: string, eventId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
+  validate(code: string, year: string, eventId?: string | null, zoneId?: string | null): Observable<ApiResponse<TicketValidationResult>> {
     return new Observable<ApiResponse<TicketValidationResult>>((subscriber) => {
       const controller = new AbortController();
-      this.validateAsync(code, year, eventId, controller.signal)
+      this.validateAsync(code, year, eventId, zoneId, controller.signal)
         .then((response) => {
           subscriber.next(response);
           subscriber.complete();
@@ -108,12 +128,12 @@ export class TicketsAdminService {
     });
   }
 
-  async validateAsync(code: string, year: string, eventId?: string | null, signal?: AbortSignal): Promise<ApiResponse<TicketValidationResult>> {
+  async validateAsync(code: string, year: string, eventId?: string | null, zoneId?: string | null, signal?: AbortSignal): Promise<ApiResponse<TicketValidationResult>> {
     const params = this.params(year, { eventId }).toString();
     const response = await fetch(`${this.baseUrl}/validate?${params}`, {
       method: 'POST',
       headers: this.fetchHeaders(),
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, zoneId: zoneId || null }),
       signal
     });
     const raw = await this.readJsonResponse(response);
@@ -260,7 +280,7 @@ export class TicketsAdminService {
   }
 
   private normalizeValidationStatus(status: unknown): TicketValidationResult['status'] {
-    if (status === 'valid' || status === 'invalid' || status === 'inactive' || status === 'blocked' || status === 'used') {
+    if (status === 'valid' || status === 'invalid' || status === 'inactive' || status === 'blocked' || status === 'used' || status === 'wrong_zone') {
       return status;
     }
 
@@ -277,6 +297,8 @@ export class TicketsAdminService {
         return 'Entrada no activada.';
       case 'blocked':
         return 'Entrada bloqueada.';
+      case 'wrong_zone':
+        return 'Zona de acceso no valida.';
       default:
         return 'Validacion rechazada.';
     }

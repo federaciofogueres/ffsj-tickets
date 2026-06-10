@@ -4,13 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { saveAs } from 'file-saver';
 
-import { AdminStats, Ticket, TicketEvent, TrackingLog } from '../../models/ticket.model';
+import { AdminStats, Ticket, TicketAccessZone, TicketEvent, TicketZoneSummary, TrackingLog } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
 import { ValidarComponent } from '../validar/validar.component';
 
-type Tab = 'generate' | 'tickets' | 'batches' | 'activate';
+type Tab = 'generate' | 'tickets' | 'batches' | 'activate' | 'zones';
 type BackofficeSection = 'tickets' | 'validar' | 'tracking';
 const ACTIVE_EVENT_STORAGE_KEY = 'ffsj-tickets-active-event-id';
+const DEFAULT_ZONE_COLOR = '#e00616';
 
 @Component({
   selector: 'app-backoffice',
@@ -35,6 +36,10 @@ export class BackofficeComponent implements OnInit {
   protected listLoading = false;
   protected stats: AdminStats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
   protected events: TicketEvent[] = [];
+  protected zones: TicketAccessZone[] = [];
+  protected zoneSummariesData: TicketZoneSummary[] = [];
+  protected readonly zoneColorPalette = ['#e00616', '#0f766e', '#2563eb', '#7c3aed', '#c026d3', '#ea580c', '#ca8a04', '#16a34a', '#0f172a'];
+  protected zonesLoading = false;
   protected activeEventId: string | null = sessionStorage.getItem(ACTIVE_EVENT_STORAGE_KEY);
   protected eventLoading = false;
   protected eventFormOpen = false;
@@ -62,8 +67,9 @@ export class BackofficeComponent implements OnInit {
     dateTo: ''
   };
 
-  protected ticketForm = { codigo: '', activada: true, bloqueada: false };
-  protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true };
+  protected zoneForm = { id: null as string | null, nombre: '', colorHex: DEFAULT_ZONE_COLOR };
+  protected ticketForm = { codigo: '', activada: true, bloqueada: false, zoneId: '' };
+  protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true, zoneId: '' };
   protected emailForm = { email: '', code: '', batchId: '' };
   protected activationForm = { code: '' };
 
@@ -82,6 +88,8 @@ export class BackofficeComponent implements OnInit {
       return;
     }
     this.loadStats();
+    this.loadZones();
+    this.loadZoneSummaryTickets();
     if (this.section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
@@ -115,6 +123,7 @@ export class BackofficeComponent implements OnInit {
 
   protected createTicket(): void {
     if (!this.requireActiveEvent()) return;
+    if (!this.requireZoneSelection(this.ticketForm.zoneId)) return;
     const codigo = this.ticketForm.codigo.trim().toUpperCase();
     if (!codigo) {
       this.setMessage('Indica un codigo.', 'warning');
@@ -122,7 +131,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.loading = true;
-    this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo }, this.year, this.activeEventId).subscribe({
+    this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo, zoneId: this.normalizedZoneId(this.ticketForm.zoneId) }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.ticketForm.codigo = '';
         this.setMessage('Entrada creada.', 'success');
@@ -134,8 +143,9 @@ export class BackofficeComponent implements OnInit {
 
   protected generateBatch(): void {
     if (!this.requireActiveEvent()) return;
+    if (!this.requireZoneSelection(this.batchForm.zoneId)) return;
     this.loading = true;
-    this.ticketsAdminService.generateTickets(this.batchForm, this.year, this.activeEventId).subscribe({
+    this.ticketsAdminService.generateTickets({ ...this.batchForm, zoneId: this.normalizedZoneId(this.batchForm.zoneId) }, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.emailForm.batchId = data.batchId;
         this.setMessage(`Lote ${data.batchId} generado con ${data.totalGenerated} entradas.`, 'success');
@@ -217,6 +227,47 @@ export class BackofficeComponent implements OnInit {
     });
   }
 
+  protected loadZones(): void {
+    if (!this.activeEventId) {
+      this.zones = [];
+      return;
+    }
+    const eventId = this.activeEventId;
+
+    this.zonesLoading = true;
+    this.ticketsAdminService.listZones(this.year, eventId).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.zones = data;
+          this.syncSelectedZones();
+          this.zonesLoading = false;
+        });
+      },
+      error: () => {
+        this.applyViewUpdate(() => {
+          this.zones = [];
+          this.zonesLoading = false;
+        });
+      }
+    });
+  }
+
+  protected loadZoneSummaryTickets(): void {
+    if (!this.activeEventId) {
+      this.zoneSummariesData = [];
+      return;
+    }
+
+    this.ticketsAdminService.statsByZone(this.year, this.activeEventId).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.zoneSummariesData = data;
+        });
+      },
+      error: () => undefined
+    });
+  }
+
   protected loadTracking(reset = false): void {
     if (reset) {
       this.trackingCursor = null;
@@ -260,7 +311,7 @@ export class BackofficeComponent implements OnInit {
   protected saveTicket(ticket: Ticket): void {
     if (!this.requireActiveEvent()) return;
     this.loading = true;
-    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada }, this.year, this.activeEventId).subscribe({
+    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada, zoneId: ticket.zoneId ?? null }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada actualizada.', 'success');
         this.refresh();
@@ -420,6 +471,70 @@ export class BackofficeComponent implements OnInit {
     });
   }
 
+  protected saveZone(): void {
+    if (!this.requireActiveEvent()) return;
+    const eventId = this.activeEventId;
+    if (!eventId) return;
+    const nombre = this.zoneForm.nombre.trim();
+    if (!nombre) {
+      this.setMessage('Indica el nombre de la zona.', 'warning');
+      return;
+    }
+
+    this.zonesLoading = true;
+    const isEditing = Boolean(this.zoneForm.id);
+    const request = this.zoneForm.id
+      ? this.ticketsAdminService.updateZone(this.year, eventId, this.zoneForm.id, { nombre, colorHex: this.zoneForm.colorHex })
+      : this.ticketsAdminService.createZone(this.year, eventId, { nombre, colorHex: this.zoneForm.colorHex });
+
+    request.subscribe({
+      next: () => {
+        this.zoneForm = { id: null, nombre: '', colorHex: DEFAULT_ZONE_COLOR };
+        this.setMessage(isEditing ? 'Zona actualizada.' : 'Zona creada.', 'success');
+        this.loadZones();
+      },
+      error: (error) => {
+        this.zonesLoading = false;
+        this.handleError(error, 'No se ha podido guardar la zona.');
+      }
+    });
+  }
+
+  protected editZone(zone: TicketAccessZone): void {
+    this.zoneForm = { id: zone.id, nombre: zone.nombre, colorHex: zone.colorHex || DEFAULT_ZONE_COLOR };
+  }
+
+  protected cancelZoneEdit(): void {
+    this.zoneForm = { id: null, nombre: '', colorHex: DEFAULT_ZONE_COLOR };
+  }
+
+  protected selectZoneColor(colorHex: string): void {
+    this.zoneForm.colorHex = colorHex;
+  }
+
+  protected deleteZone(zone: TicketAccessZone): void {
+    if (!this.requireActiveEvent()) return;
+    const eventId = this.activeEventId;
+    if (!eventId) return;
+    if (!confirm(`Eliminar zona ${zone.nombre}?`)) {
+      return;
+    }
+
+    this.zonesLoading = true;
+    this.ticketsAdminService.deleteZone(this.year, eventId, zone.id).subscribe({
+      next: () => {
+        this.cancelZoneEdit();
+        this.setMessage('Zona eliminada.', 'success');
+        this.loadZones();
+        this.loadZoneSummaryTickets();
+      },
+      error: (error) => {
+        this.zonesLoading = false;
+        this.handleError(error, 'No se ha podido eliminar la zona.');
+      }
+    });
+  }
+
   protected get batchSummaries(): Array<{ batchId: string; total: number; active: number; validated: number; tickets: Ticket[] }> {
     const grouped = new Map<string, Ticket[]>();
     this.tickets.filter((ticket) => ticket.batchId).forEach((ticket) => {
@@ -432,6 +547,18 @@ export class BackofficeComponent implements OnInit {
       validated: tickets.filter((ticket) => ticket.usada).length,
       tickets
     }));
+  }
+
+  protected get hasZones(): boolean {
+    return this.zones.length > 0;
+  }
+
+  protected get zoneSummaries(): TicketZoneSummary[] {
+    return this.zoneSummariesData.slice().sort((a, b) => {
+      if (a.zoneId === null) return 1;
+      if (b.zoneId === null) return -1;
+      return a.zoneName.localeCompare(b.zoneName);
+    });
   }
 
   protected get filteredTickets(): Ticket[] {
@@ -568,8 +695,39 @@ export class BackofficeComponent implements OnInit {
   private resetTicketContext(): void {
     this.stats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
     this.tickets = [];
+    this.zoneSummariesData = [];
+    this.zones = [];
     this.cursor = null;
     this.listLoading = false;
+  }
+
+  private normalizedZoneId(zoneId: string | null | undefined): string | null {
+    return zoneId && zoneId.trim() ? zoneId : null;
+  }
+
+  private requireZoneSelection(zoneId: string): boolean {
+    if (!this.hasZones || this.normalizedZoneId(zoneId)) {
+      return true;
+    }
+
+    this.setMessage('Selecciona una zona de acceso.', 'warning');
+    return false;
+  }
+
+  private syncSelectedZones(): void {
+    const defaultZoneId = this.zones[0]?.id ?? '';
+    if (this.zones.length === 0) {
+      this.ticketForm.zoneId = '';
+      this.batchForm.zoneId = '';
+      return;
+    }
+
+    if (!this.zones.some((zone) => zone.id === this.ticketForm.zoneId)) {
+      this.ticketForm.zoneId = defaultZoneId;
+    }
+    if (!this.zones.some((zone) => zone.id === this.batchForm.zoneId)) {
+      this.batchForm.zoneId = defaultZoneId;
+    }
   }
 
   private trackingTone(log: TrackingLog): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
