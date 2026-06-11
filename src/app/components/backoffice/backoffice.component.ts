@@ -43,7 +43,7 @@ export class BackofficeComponent implements OnInit {
   protected activeEventId: string | null = sessionStorage.getItem(ACTIVE_EVENT_STORAGE_KEY);
   protected eventLoading = false;
   protected eventFormOpen = false;
-  protected eventForm = { nombre: '', descripcion: '', fechaEvento: '', estado: 'activo' as 'activo' | 'finalizado' };
+  protected eventForm = { nombre: '', descripcion: '', fechaEvento: '', horaEvento: '', estado: 'activo' as 'activo' | 'finalizado' | 'inactivo' };
   protected tickets: Ticket[] = [];
   protected cursor: string | null = null;
   protected status = 'all';
@@ -452,12 +452,13 @@ export class BackofficeComponent implements OnInit {
       nombre,
       descripcion: this.eventForm.descripcion.trim() || null,
       fechaEvento: this.eventForm.fechaEvento || null,
+      horaEvento: this.eventForm.horaEvento || null,
       estado: this.eventForm.estado
     }, this.year).subscribe({
       next: ({ data }) => {
         this.applyViewUpdate(() => {
           this.events = [data, ...this.events.filter((event) => event.id !== data.id)];
-          this.eventForm = { nombre: '', descripcion: '', fechaEvento: '', estado: 'activo' };
+          this.eventForm = { nombre: '', descripcion: '', fechaEvento: '', horaEvento: '', estado: 'activo' };
           this.eventFormOpen = false;
           this.eventLoading = false;
           this.selectEvent(data.id);
@@ -469,6 +470,40 @@ export class BackofficeComponent implements OnInit {
         this.handleError(error, 'No se ha podido crear el evento.');
       }
     });
+  }
+
+  protected deactivateEvent(): void {
+    const event = this.activeEvent;
+    if (!event) {
+      this.setMessage('Selecciona un evento antes de borrarlo.', 'warning');
+      return;
+    }
+    if (event.estado === 'inactivo') {
+      this.setMessage('El evento ya esta inactivo.', 'info');
+      return;
+    }
+    if (!confirm(`Borrar evento "${event.nombre}"? Se marcara como inactivo.`)) {
+      return;
+    }
+
+    this.eventLoading = true;
+    this.ticketsAdminService.updateEvent(event.id, { estado: 'inactivo' }, this.year).subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.events = this.events.map((item) => item.id === data.id ? data : item);
+          this.eventLoading = false;
+          this.setMessage('Evento marcado como inactivo.', 'success');
+        });
+      },
+      error: (error) => {
+        this.eventLoading = false;
+        this.handleError(error, 'No se ha podido borrar el evento.');
+      }
+    });
+  }
+
+  protected eventOptionClass(event: TicketEvent): string {
+    return event.estado === 'inactivo' ? 'inactive-event-option' : '';
   }
 
   protected saveZone(): void {

@@ -51,13 +51,13 @@
       </div>
     </header>
 
-    <section class="event-context-card">
+    <section class="event-context-card" [class.event-context-inactive]="activeEvent?.estado === 'inactivo'">
       <div>
         <p class="panel-kicker">Evento activo</p>
         <h2>{{ activeEvent?.nombre || 'Selecciona un evento' }}</h2>
         <p class="helper-copy">
           @if (activeEvent) {
-            {{ activeEvent.fechaEvento || 'Sin fecha' }} - {{ activeEvent.estado }}
+            {{ activeEvent.fechaEvento || 'Sin fecha' }}{{ activeEvent.horaEvento ? ' ' + activeEvent.horaEvento : '' }} - {{ activeEvent.estado }}
           } @else {
             Selecciona o crea un evento para gestionar sus entradas.
           }
@@ -68,13 +68,20 @@
           <span>Evento</span>
           <select [ngModel]="activeEventId" (ngModelChange)="selectEvent($event)" [disabled]="eventLoading || !events.length">
             @for (event of events; track event.id) {
-            <option [value]="event.id">{{ event.nombre }}</option>
+            <option [value]="event.id" [ngClass]="eventOptionClass(event)">
+              {{ event.nombre }}{{ event.estado === 'inactivo' ? ' (inactivo)' : '' }}
+            </option>
             }
           </select>
         </label>
         <button type="button" class="ghost-btn" (click)="eventFormOpen = !eventFormOpen">
           {{ eventFormOpen ? 'Cerrar' : 'Crear evento' }}
         </button>
+        @if (activeEvent && activeEvent.estado !== 'inactivo') {
+        <button type="button" class="danger-btn" [disabled]="eventLoading" (click)="deactivateEvent()">
+          Borrar evento
+        </button>
+        }
       </div>
 
       @if (eventFormOpen) {
@@ -88,10 +95,15 @@
           <input type="date" [(ngModel)]="eventForm.fechaEvento">
         </label>
         <label class="field">
+          <span>Hora</span>
+          <input type="time" [(ngModel)]="eventForm.horaEvento">
+        </label>
+        <label class="field">
           <span>Estado</span>
           <select [(ngModel)]="eventForm.estado">
             <option value="activo">Activo</option>
             <option value="finalizado">Finalizado</option>
+            <option value="inactivo">Inactivo</option>
           </select>
         </label>
         <label class="field event-description">

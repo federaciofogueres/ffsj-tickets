@@ -214,6 +214,17 @@
   padding: 1.25rem;
 }
 
+.event-context-inactive {
+  background: #fff1f2;
+  border-color: #fca5a5;
+  box-shadow: 0 18px 42px rgba(185, 28, 28, 0.12);
+}
+
+.event-context-inactive h2,
+.event-context-inactive .panel-kicker {
+  color: #b91c1c;
+}
+
 .event-context-card h2 {
   font-size: 1.45rem;
   line-height: 1;
@@ -224,7 +235,12 @@
   align-items: end;
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.inactive-event-option {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .event-form {

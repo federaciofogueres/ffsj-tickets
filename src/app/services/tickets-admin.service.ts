@@ -47,8 +47,12 @@ export class TicketsAdminService {
     return this.http.get<ApiResponse<TicketEvent[]>>(`${this.baseUrl}/eventos`, { headers: this.headers, params: this.params(year) });
   }
 
-  createEvent(payload: { nombre: string; descripcion?: string | null; fechaEvento?: string | null; estado?: 'activo' | 'finalizado' }, year: string): Observable<ApiResponse<TicketEvent>> {
+  createEvent(payload: { nombre: string; descripcion?: string | null; fechaEvento?: string | null; horaEvento?: string | null; estado?: 'activo' | 'finalizado' | 'inactivo' }, year: string): Observable<ApiResponse<TicketEvent>> {
     return this.http.post<ApiResponse<TicketEvent>>(`${this.baseUrl}/eventos`, payload, { headers: this.headers, params: this.params(year) });
+  }
+
+  updateEvent(eventId: string, payload: { nombre?: string; descripcion?: string | null; fechaEvento?: string | null; horaEvento?: string | null; estado?: 'activo' | 'finalizado' | 'inactivo' }, year: string): Observable<ApiResponse<TicketEvent>> {
+    return this.http.put<ApiResponse<TicketEvent>>(`${this.baseUrl}/eventos/${encodeURIComponent(eventId)}`, payload, { headers: this.headers, params: this.params(year) });
   }
 
   listZones(year: string, eventId: string): Observable<ApiResponse<TicketAccessZone[]>> {

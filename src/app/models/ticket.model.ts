@@ -74,7 +74,8 @@ export interface TicketEvent {
   nombre: string;
   descripcion: string | null;
   fechaEvento: string | null;
-  estado: 'activo' | 'finalizado';
+  horaEvento: string | null;
+  estado: 'activo' | 'finalizado' | 'inactivo';
   createdAt: string;
   updatedAt: string;
 }
