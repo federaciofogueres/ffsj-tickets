@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpEventType } from '@angular/common/http';
 import { ChangeDetectorRef, Component, NgZone, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -31,6 +32,9 @@ export class BackofficeComponent implements OnInit {
   protected section: BackofficeSection = 'tickets';
   protected tab: Tab = 'generate';
   protected loading = false;
+  protected pdfLoading = false;
+  protected pdfProgress: number | null = null;
+  protected pdfLoadingMessage = '';
   protected message = '';
   protected messageTone: 'success' | 'error' | 'warning' | 'info' | 'neutral' = 'neutral';
   protected listLoading = false;
@@ -414,12 +418,20 @@ export class BackofficeComponent implements OnInit {
 
   protected downloadPdf(ticket?: Ticket): void {
     if (!this.requireActiveEvent()) return;
-    this.ticketsAdminService.downloadPdf(this.year, ticket ? { code: ticket.codigo, eventId: this.activeEventId } : { eventId: this.activeEventId }).subscribe((blob) => saveAs(blob, ticket ? `entrada-${ticket.codigo}.pdf` : `entradas-${this.year}.pdf`));
+    this.downloadPdfTarget(
+      ticket ? { code: ticket.codigo, eventId: this.activeEventId } : { eventId: this.activeEventId },
+      ticket ? `entrada-${ticket.codigo}.pdf` : `entradas-${this.year}.pdf`,
+      ticket ? `Generando PDF de ${ticket.codigo}...` : 'Generando PDF de entradas...'
+    );
   }
 
   protected downloadBatchPdf(batchId: string): void {
     if (!this.requireActiveEvent()) return;
-    this.ticketsAdminService.downloadPdf(this.year, { batchId, eventId: this.activeEventId }).subscribe((blob) => saveAs(blob, `entradas-${batchId}.pdf`));
+    this.downloadPdfTarget(
+      { batchId, eventId: this.activeEventId },
+      `entradas-${batchId}.pdf`,
+      `Generando PDF del lote ${batchId}...`
+    );
   }
 
   protected get activeEvent(): TicketEvent | null {
@@ -721,6 +733,38 @@ export class BackofficeComponent implements OnInit {
   private handleError(error: unknown, fallback: string): void {
     const response = error as { error?: { error?: { message?: string } } };
     this.setMessage(response.error?.error?.message || fallback, 'error');
+  }
+
+  private downloadPdfTarget(target: { code?: string; batchId?: string; eventId?: string | null }, filename: string, message: string): void {
+    if (this.pdfLoading) return;
+
+    this.pdfLoading = true;
+    this.pdfProgress = null;
+    this.pdfLoadingMessage = message;
+    this.changeDetectorRef.detectChanges();
+
+    this.ticketsAdminService.downloadPdfWithProgress(this.year, target).subscribe({
+      next: (event) => {
+        if (event.type === HttpEventType.DownloadProgress && event.total) {
+          this.pdfProgress = Math.round((event.loaded / event.total) * 100);
+          this.changeDetectorRef.detectChanges();
+          return;
+        }
+        if (event.type === HttpEventType.Response && event.body) {
+          saveAs(event.body, filename);
+          this.pdfLoading = false;
+          this.pdfProgress = null;
+          this.pdfLoadingMessage = '';
+          this.setMessage('PDF generado correctamente.', 'success');
+        }
+      },
+      error: (error) => {
+        this.pdfLoading = false;
+        this.pdfProgress = null;
+        this.pdfLoadingMessage = '';
+        this.handleError(error, 'No se ha podido generar el PDF.');
+      }
+    });
   }
 
   private openEmailProcess(message: string): void {

@@ -173,6 +173,24 @@
     <p class="message" [ngClass]="'message-' + messageTone">{{ message }}</p>
     }
 
+    @if (pdfLoading) {
+    <section class="pdf-loading-overlay" role="status" aria-live="assertive">
+      <div class="pdf-loading-card">
+        <span class="pdf-spinner" aria-hidden="true"></span>
+        <div>
+          <h2>{{ pdfLoadingMessage || 'Generando PDF...' }}</h2>
+          <p class="helper-copy">La API esta preparando el archivo. Puedes esperar en esta pantalla.</p>
+        </div>
+        <div class="pdf-progress" [class.pdf-progress-indeterminate]="pdfProgress === null" aria-label="Progreso de generacion del PDF">
+          <span [style.width.%]="pdfProgress ?? 35"></span>
+        </div>
+        <p class="pdf-progress-label">
+          {{ pdfProgress === null ? 'Procesando...' : pdfProgress + '%' }}
+        </p>
+      </div>
+    </section>
+    }
+
     @if (section === 'tickets') {
     <section class="section-tabs" aria-label="Gestion de tickets">
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'generate'" (click)="setTab('generate')">
@@ -277,7 +295,7 @@
         <p class="panel-kicker">Entradas fisicas</p>
         <h2>Plantilla PDF</h2>
         <p class="helper-copy">El PDF se genera con el diseño oficial de entradas FFSJ y QR de validacion.</p>
-        <button type="button" class="secondary-btn compact-action" (click)="downloadPdf()">Descargar todos los tickets en PDF</button>
+        <button type="button" class="secondary-btn compact-action" [disabled]="pdfLoading" (click)="downloadPdf()">Descargar todos los tickets en PDF</button>
       </article>
     </section>
     } @else if (tab === 'zones') {
@@ -463,7 +481,7 @@
               </label>
               }
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
-              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
+              <button type="button" class="ghost-btn" [disabled]="pdfLoading" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareTicketEmail(ticket)">Enviar email</button>
               <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
             </div>
@@ -506,7 +524,7 @@
               <button type="button" class="secondary-btn" (click)="$event.stopPropagation(); activateBatch(batch.batchId)">
                 Activar lote
               </button>
-              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
+              <button type="button" class="ghost-btn" [disabled]="pdfLoading" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
                 PDF
               </button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareBatchEmail(batch.batchId)">

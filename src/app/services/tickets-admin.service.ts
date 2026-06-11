@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -154,6 +154,16 @@ export class TicketsAdminService {
 
   downloadPdf(year: string, target?: { code?: string; batchId?: string; eventId?: string | null }): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/tickets/pdf`, { headers: this.headers, params: this.params(year, target), responseType: 'blob' });
+  }
+
+  downloadPdfWithProgress(year: string, target?: { code?: string; batchId?: string; eventId?: string | null }): Observable<HttpEvent<Blob>> {
+    return this.http.get(`${this.baseUrl}/tickets/pdf`, {
+      headers: this.headers,
+      observe: 'events',
+      params: this.params(year, target),
+      reportProgress: true,
+      responseType: 'blob'
+    });
   }
 
   listTracking(options: {
