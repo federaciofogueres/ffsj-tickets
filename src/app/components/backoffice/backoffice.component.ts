@@ -71,7 +71,7 @@ export class BackofficeComponent implements OnInit {
   protected ticketForm = { codigo: '', activada: true, bloqueada: false, zoneId: '' };
   protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true, zoneId: '' };
   protected emailForm = { email: '', code: '', batchId: '' };
-  protected activationForm = { code: '' };
+  protected validationForm = { code: '', zoneId: '' };
 
   ngOnInit(): void {
     const requestedSection = this.route.snapshot.queryParamMap.get('section');
@@ -173,6 +173,29 @@ export class BackofficeComponent implements OnInit {
       },
       error: (error) => this.handleError(error, 'No se ha podido enviar el email.')
     });
+  }
+
+  protected prepareTicketEmail(ticket: Ticket): void {
+    this.emailForm = { email: this.emailForm.email, code: ticket.codigo, batchId: '' };
+    this.openEmailProcess(`Preparado envio por email para la entrada ${ticket.codigo}.`);
+  }
+
+  protected prepareBatchEmail(batchId: string): void {
+    this.emailForm = { email: this.emailForm.email, code: '', batchId };
+    this.openEmailProcess(`Preparado envio por email para el lote ${batchId}.`);
+  }
+
+  protected async copyBatchId(batchId: string): Promise<void> {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(batchId);
+      } else {
+        this.copyTextFallback(batchId);
+      }
+      this.setMessage('ID de lote copiado.', 'success');
+    } catch {
+      this.setMessage('No se ha podido copiar el ID del lote.', 'error');
+    }
   }
 
   protected loadStats(): void {
@@ -364,28 +387,23 @@ export class BackofficeComponent implements OnInit {
     });
   }
 
-  protected activateFromForm(): void {
+  protected validateFromForm(): void {
     if (!this.requireActiveEvent()) return;
-    const value = this.activationForm.code.trim();
+    if (!this.requireZoneSelection(this.validationForm.zoneId)) return;
+    const value = this.validationForm.code.trim();
     if (!value) {
       this.setMessage('Indica un codigo de entrada o lote.', 'warning');
       return;
     }
 
     this.loading = true;
-    const hyphenCount = (value.match(/-/g) ?? []).length;
-    if (hyphenCount >= 4) {
-      this.activateBatch(value);
-      return;
-    }
-
-    this.ticketsAdminService.updateTicket(value.toUpperCase(), { activada: true }, this.year, this.activeEventId).subscribe({
-      next: () => {
-        this.setMessage('Entrada activada.', 'success');
-        this.activationForm.code = '';
+    this.ticketsAdminService.validate(value, this.year, this.activeEventId, this.normalizedZoneId(this.validationForm.zoneId)).subscribe({
+      next: ({ data }) => {
+        this.setMessage(data.message, data.status === 'valid' ? 'success' : data.status === 'used' ? 'info' : 'warning');
+        this.validationForm.code = '';
         this.refresh();
       },
-      error: (error) => this.handleError(error, 'No se ha podido activar la entrada.')
+      error: (error) => this.handleError(error, 'No se ha podido validar la entrada.')
     });
   }
 
@@ -705,6 +723,26 @@ export class BackofficeComponent implements OnInit {
     this.setMessage(response.error?.error?.message || fallback, 'error');
   }
 
+  private openEmailProcess(message: string): void {
+    this.tab = 'generate';
+    this.currentPage = 1;
+    this.expandedTicketCode = null;
+    this.expandedBatchId = null;
+    this.setMessage(message, 'info');
+  }
+
+  private copyTextFallback(text: string): void {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+
   private applyViewUpdate(update: () => void): void {
     this.ngZone.run(() => {
       update();
@@ -754,6 +792,7 @@ export class BackofficeComponent implements OnInit {
     if (this.zones.length === 0) {
       this.ticketForm.zoneId = '';
       this.batchForm.zoneId = '';
+      this.validationForm.zoneId = '';
       return;
     }
 
@@ -762,6 +801,9 @@ export class BackofficeComponent implements OnInit {
     }
     if (!this.zones.some((zone) => zone.id === this.batchForm.zoneId)) {
       this.batchForm.zoneId = defaultZoneId;
+    }
+    if (!this.zones.some((zone) => zone.id === this.validationForm.zoneId)) {
+      this.validationForm.zoneId = defaultZoneId;
     }
   }
 

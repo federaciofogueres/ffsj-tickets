@@ -185,7 +185,7 @@
         Listado de lotes
       </button>
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'activate'" (click)="setTab('activate')">
-        Activacion de tickets
+        Validacion de tickets
       </button>
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'zones'" (click)="setTab('zones')">
         Zonas
@@ -344,12 +344,22 @@
     <section class="admin-layout">
       <article class="panel-card">
         <p class="panel-kicker">Acceso</p>
-        <h2>Activar por codigo</h2>
+        <h2>Validar por codigo</h2>
         <label class="field">
           <span>Ticket o lote</span>
-          <input type="text" [(ngModel)]="activationForm.code" placeholder="FFSJ-0001 o ID de lote">
+          <input type="text" [(ngModel)]="validationForm.code" placeholder="FFSJ-0001 o ID de lote">
         </label>
-        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="activateFromForm()">Activar</button>
+        @if (hasZones) {
+        <label class="field">
+          <span>Zona de acceso</span>
+          <select [(ngModel)]="validationForm.zoneId">
+            @for (zone of zones; track zone.id) {
+            <option [value]="zone.id">{{ zone.nombre }}</option>
+            }
+          </select>
+        </label>
+        }
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="validateFromForm()">Validar</button>
       </article>
 
       <article class="panel-card">
@@ -454,6 +464,7 @@
               }
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
+              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareTicketEmail(ticket)">Enviar email</button>
               <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
             </div>
           </div>
@@ -464,14 +475,24 @@
       } @else {
       <div class="records-list">
         @for (batch of visibleBatches; track batch.batchId) {
-        <article class="record-card ticket-record-card" [class.record-card-expanded]="expandedBatchId === batch.batchId">
-          <button type="button" class="record-summary-button" (click)="toggleBatch(batch.batchId)"
-            [attr.aria-expanded]="expandedBatchId === batch.batchId">
+        <article class="record-card ticket-record-card batch-record-card" [class.record-card-expanded]="expandedBatchId === batch.batchId">
+          <div class="record-summary-button batch-summary-row">
             <span class="record-summary-main">
-              <span class="record-summary-id">{{ batch.batchId }}</span>
+              <span class="batch-id-inline">
+                <span class="record-summary-id">{{ batch.batchId }}</span>
+                <button type="button" class="icon-btn" title="Copiar ID de lote" aria-label="Copiar ID de lote"
+                  (click)="copyBatchId(batch.batchId)">
+                  <i class="bi bi-clipboard" aria-hidden="true"></i>
+                </button>
+              </span>
             </span>
-            <i class="bi bi-chevron-down record-chevron" aria-hidden="true"></i>
-          </button>
+            <span class="record-summary-actions">
+              <button type="button" class="icon-btn" title="Ver detalles del lote" aria-label="Ver detalles del lote"
+                (click)="toggleBatch(batch.batchId)" [attr.aria-expanded]="expandedBatchId === batch.batchId">
+                <i class="bi bi-chevron-down record-chevron" aria-hidden="true"></i>
+              </button>
+            </span>
+          </div>
 
           @if (expandedBatchId === batch.batchId) {
           <div class="record-expanded">
@@ -487,6 +508,9 @@
               </button>
               <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
                 PDF
+              </button>
+              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareBatchEmail(batch.batchId)">
+                Enviar email
               </button>
               <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
                 Eliminar lote
