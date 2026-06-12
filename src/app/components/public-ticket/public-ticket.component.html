@@ -1,0 +1,73 @@
+<main class="public-ticket-page">
+  <section class="public-ticket-shell">
+    <header class="public-ticket-header">
+      <img src="assets/img/logo-intranet.png" alt="Federacio de Fogueres de Sant Joan">
+      <div>
+        <p class="public-ticket-kicker">Entradas FFSJ</p>
+        <h1>Entrada digital</h1>
+      </div>
+    </header>
+
+    @if (loading) {
+    <section class="public-ticket-state" role="status" aria-live="polite">
+      <span class="public-ticket-spinner" aria-hidden="true"></span>
+      <strong>Cargando entrada...</strong>
+    </section>
+    } @else if (error) {
+    <section class="public-ticket-state public-ticket-error" role="alert">
+      <i class="bi bi-exclamation-triangle"></i>
+      <strong>{{ error }}</strong>
+    </section>
+    } @else if (ticket) {
+    <section class="public-ticket-card">
+      <div class="public-ticket-preview">
+        @if (ticket.imageUrl) {
+        <img [src]="ticket.imageUrl" [alt]="'Entrada ' + ticket.codigo">
+        } @else {
+        <div class="public-ticket-placeholder">
+          <i class="bi bi-ticket-perforated"></i>
+        </div>
+        }
+      </div>
+
+      <div class="public-ticket-detail">
+        <span class="public-ticket-status" [ngClass]="statusClass">{{ statusLabel }}</span>
+        <h2>{{ ticket.codigo }}</h2>
+
+        <dl>
+          @if (ticket.eventName) {
+          <div>
+            <dt>Evento</dt>
+            <dd>{{ ticket.eventName }}</dd>
+          </div>
+          }
+          @if (ticket.eventDate || ticket.eventTime) {
+          <div>
+            <dt>Fecha</dt>
+            <dd>{{ ticket.eventDate || 'Pendiente' }} @if (ticket.eventTime) { <span>{{ ticket.eventTime }}</span> }</dd>
+          </div>
+          }
+          @if (ticket.zoneName) {
+          <div>
+            <dt>Zona</dt>
+            <dd>
+              @if (ticket.zoneColor) {
+              <span class="public-ticket-zone-dot" [style.background]="ticket.zoneColor" aria-hidden="true"></span>
+              }
+              {{ ticket.zoneName }}
+            </dd>
+          </div>
+          }
+        </dl>
+
+        @if (ticket.pdfUrl) {
+        <a class="public-ticket-download" [href]="ticket.pdfUrl" target="_blank" rel="noopener">
+          <i class="bi bi-file-earmark-pdf"></i>
+          Abrir PDF
+        </a>
+        }
+      </div>
+    </section>
+    }
+  </section>
+</main>

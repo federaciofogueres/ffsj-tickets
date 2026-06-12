@@ -287,8 +287,8 @@
             <input type="text" [(ngModel)]="emailForm.batchId" placeholder="BATCH-...">
           </label>
         </div>
-        <p class="helper-copy">Indica un ticket concreto o un lote completo. Se enviara un PDF con los QR adjuntos.</p>
-        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="sendEmail()">Enviar PDF</button>
+        <p class="helper-copy">Indica un ticket concreto o un lote completo. Se enviara el PDF conjunto y una imagen por entrada.</p>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="sendEmail()">Enviar entradas</button>
       </article>
 
       <article class="panel-card">

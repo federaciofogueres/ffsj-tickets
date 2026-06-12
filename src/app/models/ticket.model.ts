@@ -44,6 +44,18 @@ export interface TicketEmailResult {
   batchId: string | null;
 }
 
+export interface PublicTicketView {
+  codigo: string;
+  eventName: string | null;
+  eventDate: string | null;
+  eventTime: string | null;
+  zoneName: string | null;
+  zoneColor: string | null;
+  status: 'available' | 'inactive' | 'blocked' | 'used' | 'invalid';
+  imageUrl: string | null;
+  pdfUrl: string | null;
+}
+
 export interface TicketValidationResult {
   status: 'valid' | 'invalid' | 'inactive' | 'blocked' | 'used' | 'wrong_zone';
   codigo: string;
