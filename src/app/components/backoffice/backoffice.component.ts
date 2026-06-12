@@ -32,6 +32,7 @@ export class BackofficeComponent implements OnInit {
   protected section: BackofficeSection = 'tickets';
   protected tab: Tab = 'generate';
   protected loading = false;
+  protected loadingMessage = '';
   protected pdfLoading = false;
   protected pdfProgress: number | null = null;
   protected pdfLoadingMessage = '';
@@ -134,7 +135,7 @@ export class BackofficeComponent implements OnInit {
       return;
     }
 
-    this.loading = true;
+    this.beginOperation('Creando entrada...');
     this.ticketsAdminService.createTicket({ ...this.ticketForm, codigo, zoneId: this.normalizedZoneId(this.ticketForm.zoneId) }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.ticketForm.codigo = '';
@@ -148,7 +149,7 @@ export class BackofficeComponent implements OnInit {
   protected generateBatch(): void {
     if (!this.requireActiveEvent()) return;
     if (!this.requireZoneSelection(this.batchForm.zoneId)) return;
-    this.loading = true;
+    this.beginOperation(`Generando ${this.batchForm.quantity} entradas...`);
     this.ticketsAdminService.generateTickets({ ...this.batchForm, zoneId: this.normalizedZoneId(this.batchForm.zoneId) }, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.emailForm.batchId = data.batchId;
@@ -169,11 +170,10 @@ export class BackofficeComponent implements OnInit {
       return;
     }
 
-    this.loading = true;
+    this.beginOperation(batchId ? `Enviando lote ${batchId} por email...` : `Enviando entrada ${code} por email...`);
     this.ticketsAdminService.sendTicketsByEmail({ email, ...(code ? { code } : {}), ...(batchId ? { batchId } : {}) }, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.setMessage(`${data.sent} entradas enviadas a ${data.email}.`, 'success');
-        this.loading = false;
       },
       error: (error) => this.handleError(error, 'No se ha podido enviar el email.')
     });
@@ -337,7 +337,7 @@ export class BackofficeComponent implements OnInit {
 
   protected saveTicket(ticket: Ticket): void {
     if (!this.requireActiveEvent()) return;
-    this.loading = true;
+    this.beginOperation(`Guardando entrada ${ticket.codigo}...`);
     this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada, zoneId: ticket.zoneId ?? null }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada actualizada.', 'success');
@@ -352,7 +352,7 @@ export class BackofficeComponent implements OnInit {
     if (!confirm(`Eliminar entrada ${ticket.codigo}?`)) {
       return;
     }
-    this.loading = true;
+    this.beginOperation(`Eliminando entrada ${ticket.codigo}...`);
     this.ticketsAdminService.deleteTicket(ticket.codigo, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada eliminada.', 'success');
@@ -368,7 +368,7 @@ export class BackofficeComponent implements OnInit {
       return;
     }
 
-    this.loading = true;
+    this.beginOperation(`Eliminando lote ${batchId}...`);
     this.ticketsAdminService.deleteBatch(batchId, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.expandedBatchId = null;
@@ -381,7 +381,7 @@ export class BackofficeComponent implements OnInit {
 
   protected activateBatch(batchId: string): void {
     if (!this.requireActiveEvent()) return;
-    this.loading = true;
+    this.beginOperation(`Activando lote ${batchId}...`);
     this.ticketsAdminService.activateBatch(batchId, this.year, this.activeEventId).subscribe({
       next: ({ data }) => {
         this.setMessage(`Lote activado: ${data.activatedCount}/${data.total}.`, 'success');
@@ -400,7 +400,7 @@ export class BackofficeComponent implements OnInit {
       return;
     }
 
-    this.loading = true;
+    this.beginOperation('Validando entrada...');
     this.ticketsAdminService.validate(value, this.year, this.activeEventId, this.normalizedZoneId(this.validationForm.zoneId)).subscribe({
       next: ({ data }) => {
         this.setMessage(data.message, data.status === 'valid' ? 'success' : data.status === 'used' ? 'info' : 'warning');
@@ -413,7 +413,14 @@ export class BackofficeComponent implements OnInit {
 
   protected exportCsv(): void {
     if (!this.requireActiveEvent()) return;
-    this.ticketsAdminService.exportTickets(this.year, this.activeEventId).subscribe((blob) => saveAs(blob, `tickets-${this.year}-${this.activeEventId}.csv`));
+    this.beginOperation('Exportando CSV...');
+    this.ticketsAdminService.exportTickets(this.year, this.activeEventId).subscribe({
+      next: (blob) => {
+        saveAs(blob, `tickets-${this.year}-${this.activeEventId}.csv`);
+        this.setMessage('CSV exportado correctamente.', 'success');
+      },
+      error: (error) => this.handleError(error, 'No se ha podido exportar el CSV.')
+    });
   }
 
   protected downloadPdf(ticket?: Ticket): void {
@@ -478,6 +485,7 @@ export class BackofficeComponent implements OnInit {
       return;
     }
     this.eventLoading = true;
+    this.beginOperation('Guardando evento...');
     this.ticketsAdminService.createEvent({
       nombre,
       descripcion: this.eventForm.descripcion.trim() || null,
@@ -517,6 +525,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.eventLoading = true;
+    this.beginOperation(`Borrando evento ${event.nombre}...`);
     this.ticketsAdminService.updateEvent(event.id, { estado: 'inactivo' }, this.year).subscribe({
       next: ({ data }) => {
         this.applyViewUpdate(() => {
@@ -547,6 +556,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.zonesLoading = true;
+    this.beginOperation(this.zoneForm.id ? 'Guardando zona...' : 'Creando zona...');
     const isEditing = Boolean(this.zoneForm.id);
     const request = this.zoneForm.id
       ? this.ticketsAdminService.updateZone(this.year, eventId, this.zoneForm.id, { nombre, colorHex: this.zoneForm.colorHex })
@@ -586,6 +596,7 @@ export class BackofficeComponent implements OnInit {
     }
 
     this.zonesLoading = true;
+    this.beginOperation(`Eliminando zona ${zone.nombre}...`);
     this.ticketsAdminService.deleteZone(this.year, eventId, zone.id).subscribe({
       next: () => {
         this.cancelZoneEdit();
@@ -735,6 +746,12 @@ export class BackofficeComponent implements OnInit {
     this.setMessage(response.error?.error?.message || fallback, 'error');
   }
 
+  private beginOperation(message: string): void {
+    this.loading = true;
+    this.loadingMessage = message;
+    this.changeDetectorRef.detectChanges();
+  }
+
   private downloadPdfTarget(target: { code?: string; batchId?: string; eventId?: string | null }, filename: string, message: string): void {
     if (this.pdfLoading) return;
 
@@ -798,6 +815,7 @@ export class BackofficeComponent implements OnInit {
     this.message = message;
     this.messageTone = tone;
     this.loading = false;
+    this.loadingMessage = '';
     this.changeDetectorRef.detectChanges();
   }
 

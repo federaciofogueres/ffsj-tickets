@@ -471,7 +471,8 @@
   color: #536070;
 }
 
-.pdf-loading-overlay {
+.pdf-loading-overlay,
+.api-loading-overlay {
   align-items: center;
   background: rgba(15, 23, 42, 0.38);
   display: flex;
@@ -482,7 +483,8 @@
   z-index: 20;
 }
 
-.pdf-loading-card {
+.pdf-loading-card,
+.api-loading-card {
   background: #ffffff;
   border: 1px solid #dfe5ee;
   border-radius: 18px;
@@ -494,13 +496,15 @@
   width: min(100%, 420px);
 }
 
-.pdf-loading-card h2 {
+.pdf-loading-card h2,
+.api-loading-card h2 {
   font-size: 1.25rem;
   line-height: 1.15;
   margin: 0 0 0.35rem;
 }
 
-.pdf-spinner {
+.pdf-spinner,
+.api-spinner {
   animation: spin 0.85s linear infinite;
   border: 4px solid #fde6e6;
   border-top-color: #e00000;
@@ -510,7 +514,8 @@
   width: 46px;
 }
 
-.pdf-progress {
+.pdf-progress,
+.api-progress {
   background: #eef0f4;
   border-radius: 999px;
   height: 10px;
@@ -518,7 +523,8 @@
   position: relative;
 }
 
-.pdf-progress span {
+.pdf-progress span,
+.api-progress span {
   background: #e00000;
   border-radius: inherit;
   display: block;
@@ -526,7 +532,8 @@
   transition: width 0.2s ease;
 }
 
-.pdf-progress-indeterminate span {
+.pdf-progress-indeterminate span,
+.api-progress-indeterminate span {
   animation: progressSlide 1.1s ease-in-out infinite;
   position: absolute;
   width: 35%;

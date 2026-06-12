@@ -78,7 +78,7 @@
           {{ eventFormOpen ? 'Cerrar' : 'Crear evento' }}
         </button>
         @if (activeEvent && activeEvent.estado !== 'inactivo') {
-        <button type="button" class="danger-btn" [disabled]="eventLoading" (click)="deactivateEvent()">
+        <button type="button" class="danger-btn" [disabled]="eventLoading || loading" (click)="deactivateEvent()">
           Borrar evento
         </button>
         }
@@ -110,7 +110,7 @@
           <span>Descripcion</span>
           <input type="text" [(ngModel)]="eventForm.descripcion" placeholder="Descripcion opcional">
         </label>
-        <button type="button" class="primary-btn compact-action" [disabled]="eventLoading" (click)="createEvent()">Guardar evento</button>
+        <button type="button" class="primary-btn compact-action" [disabled]="eventLoading || loading" (click)="createEvent()">Guardar evento</button>
       </div>
       }
     </section>
@@ -191,6 +191,21 @@
     </section>
     }
 
+    @if (loading) {
+    <section class="api-loading-overlay" role="status" aria-live="assertive">
+      <div class="api-loading-card">
+        <span class="api-spinner" aria-hidden="true"></span>
+        <div>
+          <h2>{{ loadingMessage || 'Procesando...' }}</h2>
+          <p class="helper-copy">La API esta ejecutando la operacion. Espera a que finalice.</p>
+        </div>
+        <div class="api-progress api-progress-indeterminate" aria-label="Operacion en curso">
+          <span></span>
+        </div>
+      </div>
+    </section>
+    }
+
     @if (section === 'tickets') {
     <section class="section-tabs" aria-label="Gestion de tickets">
       <button type="button" class="ranking-tab" [class.ranking-tab-active]="tab === 'generate'" (click)="setTab('generate')">
@@ -242,7 +257,7 @@
             <p class="panel-kicker">Lote rapido</p>
             <h2>Generar tickets</h2>
           </div>
-          <button type="button" class="ghost-btn" (click)="exportCsv()">Exportar CSV</button>
+          <button type="button" class="ghost-btn" [disabled]="loading" (click)="exportCsv()">Exportar CSV</button>
         </div>
         <div class="two-columns">
           <label class="field">
@@ -327,7 +342,7 @@
             {{ zoneForm.id ? 'Guardar cambios' : 'Crear zona' }}
           </button>
           @if (zoneForm.id) {
-          <button type="button" class="ghost-btn" (click)="cancelZoneEdit()">Cancelar</button>
+          <button type="button" class="ghost-btn" [disabled]="loading" (click)="cancelZoneEdit()">Cancelar</button>
           }
         </div>
       </article>
@@ -338,7 +353,7 @@
             <p class="panel-kicker">Zonas creadas</p>
             <h2>{{ zones.length }} zonas</h2>
           </div>
-          <button type="button" class="ghost-btn" [disabled]="zonesLoading" (click)="loadZones()">Refrescar</button>
+          <button type="button" class="ghost-btn" [disabled]="zonesLoading || loading" (click)="loadZones()">Refrescar</button>
         </div>
         <div class="zones-list">
           @for (zone of zones; track zone.id) {
@@ -348,8 +363,8 @@
               <strong>{{ zone.nombre }}</strong>
             </span>
             <div class="actions-row">
-              <button type="button" class="ghost-btn" (click)="editZone(zone)">Editar</button>
-              <button type="button" class="danger-btn" (click)="deleteZone(zone)">Eliminar</button>
+              <button type="button" class="ghost-btn" [disabled]="loading" (click)="editZone(zone)">Editar</button>
+              <button type="button" class="danger-btn" [disabled]="loading" (click)="deleteZone(zone)">Eliminar</button>
             </div>
           </article>
           } @empty {
@@ -480,10 +495,10 @@
                 </select>
               </label>
               }
-              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
+              <button type="button" class="ghost-btn" [disabled]="loading" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
               <button type="button" class="ghost-btn" [disabled]="pdfLoading" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
-              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareTicketEmail(ticket)">Enviar email</button>
-              <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
+              <button type="button" class="ghost-btn" [disabled]="loading" (click)="$event.stopPropagation(); prepareTicketEmail(ticket)">Enviar email</button>
+              <button type="button" class="danger-btn" [disabled]="loading" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
             </div>
           </div>
           }
@@ -521,16 +536,16 @@
               <div><dt>Validadas</dt><dd>{{ batch.validated }}</dd></div>
             </dl>
             <div class="actions-row">
-              <button type="button" class="secondary-btn" (click)="$event.stopPropagation(); activateBatch(batch.batchId)">
+              <button type="button" class="secondary-btn" [disabled]="loading" (click)="$event.stopPropagation(); activateBatch(batch.batchId)">
                 Activar lote
               </button>
               <button type="button" class="ghost-btn" [disabled]="pdfLoading" (click)="$event.stopPropagation(); downloadBatchPdf(batch.batchId)">
                 PDF
               </button>
-              <button type="button" class="ghost-btn" (click)="$event.stopPropagation(); prepareBatchEmail(batch.batchId)">
+              <button type="button" class="ghost-btn" [disabled]="loading" (click)="$event.stopPropagation(); prepareBatchEmail(batch.batchId)">
                 Enviar email
               </button>
-              <button type="button" class="danger-btn" (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
+              <button type="button" class="danger-btn" [disabled]="loading" (click)="$event.stopPropagation(); deleteBatch(batch.batchId)">
                 Eliminar lote
               </button>
             </div>
