@@ -193,21 +193,16 @@ export class ValidarComponent implements OnDestroy, OnInit {
     this.offlinePreparing = true;
     this.addDebug('offline manifest download started');
     try {
-      const tickets = await this.ticketsAdminService.listAllTickets(this.year, this.eventId);
-      const zones = await this.loadZonesForOfflineManifest();
-      this.offlineSummary = this.offlineValidationService.saveManifest(this.year, this.eventId, tickets, zones);
+      const manifest = await firstValueFrom(this.ticketsAdminService.offlineManifest(this.year, this.eventId));
+      const { tickets, zones } = manifest.data;
+      this.offlineSummary = this.offlineValidationService.saveApiManifest(manifest.data);
       if (!this.accessZones.length && zones.length) {
         this.zones = zones;
       }
-      this.addDebug(`offline manifest ready tickets=${tickets.length} zones=${zones.length}`);
+      this.addDebug(`offline manifest ready tickets=${tickets.length} zones=${zones.length} checksum=${manifest.data.checksum}`);
     } catch (error) {
-      this.addDebug(`offline manifest error ${this.debugString(this.errorDebugInfo(error))}`);
-      this.result = {
-        status: 'invalid',
-        codigo: '',
-        message: 'No se ha podido preparar el modo bajisima cobertura.',
-        ticket: null
-      };
+      this.addDebug(`offline manifest endpoint error ${this.debugString(this.errorDebugInfo(error))}`);
+      await this.prepareOfflineModeLegacy();
     } finally {
       this.offlinePreparing = false;
       this.changeDetectorRef.detectChanges();
@@ -225,7 +220,7 @@ export class ValidarComponent implements OnDestroy, OnInit {
       const summary = await this.offlineValidationService.syncPending(
         this.year,
         this.eventId,
-        (codigo, zoneId) => this.validateOnlineWithRetries(codigo, zoneId)
+        (validations, deviceId) => this.ticketsAdminService.syncOfflineValidations({ deviceId, validations }, this.year, this.eventId)
       );
       this.refreshOfflineSummary();
       this.addDebug(`offline sync done attempted=${summary.attempted} synced=${summary.synced} conflicts=${summary.conflicts} failed=${summary.failed}`);
@@ -236,13 +231,8 @@ export class ValidarComponent implements OnDestroy, OnInit {
         ticket: null
       };
     } catch (error) {
-      this.addDebug(`offline sync error ${this.debugString(this.errorDebugInfo(error))}`);
-      this.result = {
-        status: 'invalid',
-        codigo: '',
-        message: 'No se han podido sincronizar las validaciones pendientes.',
-        ticket: null
-      };
+      this.addDebug(`offline sync endpoint error ${this.debugString(this.errorDebugInfo(error))}`);
+      await this.syncOfflinePendingLegacy();
     } finally {
       this.offlineSyncing = false;
       this.validationAttemptMessage = '';
@@ -475,6 +465,52 @@ export class ValidarComponent implements OnDestroy, OnInit {
 
     const response = await firstValueFrom(this.ticketsAdminService.listZones(this.year, this.eventId));
     return response.data;
+  }
+
+  private async prepareOfflineModeLegacy(): Promise<void> {
+    try {
+      const tickets = await this.ticketsAdminService.listAllTickets(this.year, this.eventId);
+      const zones = await this.loadZonesForOfflineManifest();
+      this.offlineSummary = this.offlineValidationService.saveManifest(this.year, this.eventId, tickets, zones);
+      if (!this.accessZones.length && zones.length) {
+        this.zones = zones;
+      }
+      this.addDebug(`offline legacy manifest ready tickets=${tickets.length} zones=${zones.length}`);
+    } catch (error) {
+      this.addDebug(`offline legacy manifest error ${this.debugString(this.errorDebugInfo(error))}`);
+      this.result = {
+        status: 'invalid',
+        codigo: '',
+        message: 'No se ha podido preparar el modo bajisima cobertura.',
+        ticket: null
+      };
+    }
+  }
+
+  private async syncOfflinePendingLegacy(): Promise<void> {
+    try {
+      const summary = await this.offlineValidationService.syncPendingLegacy(
+        this.year,
+        this.eventId,
+        (codigo, zoneId) => this.validateOnlineWithRetries(codigo, zoneId)
+      );
+      this.refreshOfflineSummary();
+      this.addDebug(`offline legacy sync done attempted=${summary.attempted} synced=${summary.synced} conflicts=${summary.conflicts} failed=${summary.failed}`);
+      this.result = {
+        status: summary.failed ? 'invalid' : 'valid',
+        codigo: '',
+        message: `Sincronizacion: ${summary.synced} enviadas, ${summary.conflicts} conflictos, ${summary.failed} pendientes.`,
+        ticket: null
+      };
+    } catch (error) {
+      this.addDebug(`offline legacy sync error ${this.debugString(this.errorDebugInfo(error))}`);
+      this.result = {
+        status: 'invalid',
+        codigo: '',
+        message: 'No se han podido sincronizar las validaciones pendientes.',
+        ticket: null
+      };
+    }
   }
 
   private loadOfflineZonesIfNeeded(): void {

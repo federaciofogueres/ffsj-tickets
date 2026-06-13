@@ -4,7 +4,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
-import { AdminStats, ApiResponse, PaginatedResponse, Ticket, TicketAccessZone, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TicketZoneSummary, TrackingLog } from '../models/ticket.model';
+import { AdminStats, ApiResponse, OfflineManifest, OfflineSyncResult, OfflineSyncValidation, PaginatedResponse, Ticket, TicketAccessZone, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TicketZoneSummary, TrackingLog } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -99,6 +99,10 @@ export class TicketsAdminService {
     return tickets;
   }
 
+  offlineManifest(year: string, eventId?: string | null): Observable<ApiResponse<OfflineManifest>> {
+    return this.http.get<ApiResponse<OfflineManifest>>(`${this.baseUrl}/offline-manifest`, { headers: this.headers, params: this.params(year, { eventId }) });
+  }
+
   createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
     return this.http.post<ApiResponse<Ticket>>(`${this.baseUrl}/tickets`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
@@ -143,6 +147,12 @@ export class TicketsAdminService {
 
       return () => controller.abort();
     });
+  }
+
+  syncOfflineValidations(payload: { deviceId: string; validations: OfflineSyncValidation[] }, year: string, eventId?: string | null): Promise<ApiResponse<OfflineSyncResult>> {
+    return firstValueFrom(
+      this.http.post<ApiResponse<OfflineSyncResult>>(`${this.baseUrl}/validate/offline-sync`, payload, { headers: this.headers, params: this.params(year, { eventId }) })
+    );
   }
 
   async validateAsync(code: string, year: string, eventId?: string | null, zoneId?: string | null, signal?: AbortSignal): Promise<ApiResponse<TicketValidationResult>> {

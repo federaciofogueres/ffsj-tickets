@@ -1,12 +1,13 @@
 import { Injectable } from '@angular/core';
 
-import { ApiResponse, Ticket, TicketAccessZone, TicketValidationResult } from '../models/ticket.model';
+import { ApiResponse, OfflineManifest as ApiOfflineManifest, OfflineSyncResult, OfflineSyncValidation, Ticket, TicketAccessZone, TicketValidationResult } from '../models/ticket.model';
 
 interface OfflineManifest {
   key: string;
   year: string;
   eventId: string | null;
   downloadedAt: string;
+  checksum: string | null;
   tickets: Ticket[];
   zones: TicketAccessZone[];
 }
@@ -24,6 +25,7 @@ interface PendingValidation {
 
 export interface OfflineManifestSummary {
   downloadedAt: string;
+  checksum: string | null;
   total: number;
   locallyValidated: number;
   pending: number;
@@ -47,14 +49,31 @@ export interface OfflineSyncSummary {
 export class OfflineValidationService {
   private readonly manifestPrefix = 'ffsj-offline-manifest:';
   private readonly pendingKey = 'ffsj-offline-pending';
+  private readonly deviceIdKey = 'ffsj-offline-device-id';
 
-  saveManifest(year: string, eventId: string | null, tickets: Ticket[], zones: TicketAccessZone[]): OfflineManifestSummary {
+  getDeviceId(): string {
+    const current = localStorage.getItem(this.deviceIdKey);
+    if (current) {
+      return current;
+    }
+
+    const next = `validator-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(this.deviceIdKey, next);
+    return next;
+  }
+
+  saveApiManifest(manifest: ApiOfflineManifest): OfflineManifestSummary {
+    return this.saveManifest(manifest.year, manifest.eventId, manifest.tickets, manifest.zones, manifest.generatedAt, manifest.checksum);
+  }
+
+  saveManifest(year: string, eventId: string | null, tickets: Ticket[], zones: TicketAccessZone[], downloadedAt = new Date().toISOString(), checksum: string | null = null): OfflineManifestSummary {
     const key = this.manifestKey(year, eventId);
     const manifest: OfflineManifest = {
       key,
       year,
       eventId,
-      downloadedAt: new Date().toISOString(),
+      downloadedAt,
+      checksum,
       tickets: tickets.map((ticket) => ({ ...ticket })),
       zones: zones.map((zone) => ({ ...zone }))
     };
@@ -62,6 +81,7 @@ export class OfflineValidationService {
     localStorage.setItem(this.manifestStorageKey(key), JSON.stringify(manifest));
     return this.summary(year, eventId) ?? {
       downloadedAt: manifest.downloadedAt,
+      checksum: manifest.checksum,
       total: tickets.length,
       locallyValidated: tickets.filter((ticket) => ticket.usada).length,
       pending: this.pendingForKey(key).length,
@@ -77,6 +97,7 @@ export class OfflineValidationService {
 
     return {
       downloadedAt: manifest.downloadedAt,
+      checksum: manifest.checksum,
       total: manifest.tickets.length,
       locallyValidated: manifest.tickets.filter((ticket) => ticket.usada).length,
       pending: this.pendingForKey(manifest.key).length,
@@ -150,6 +171,51 @@ export class OfflineValidationService {
   }
 
   async syncPending(
+    year: string,
+    eventId: string | null,
+    sync: (validations: OfflineSyncValidation[], deviceId: string) => Promise<ApiResponse<OfflineSyncResult>>
+  ): Promise<OfflineSyncSummary> {
+    const key = this.manifestKey(year, eventId);
+    const pending = this.pendingForKey(key);
+    const summary: OfflineSyncSummary = { attempted: pending.length, synced: 0, conflicts: 0, failed: 0 };
+    if (!pending.length) {
+      return summary;
+    }
+
+    const response = await sync(
+      pending.map((item) => ({
+        clientValidationId: item.id,
+        code: item.codigo,
+        zoneId: item.zoneId,
+        validatedAt: item.createdAt
+      })),
+      this.getDeviceId()
+    );
+
+    response.data.results.forEach((item) => {
+      if (item.status === 'synced') {
+        this.removePending(item.clientValidationId);
+        this.markServerValidation(year, eventId, item.validation);
+        summary.synced += 1;
+      } else if (item.status === 'conflict') {
+        this.removePending(item.clientValidationId);
+        summary.conflicts += 1;
+      } else {
+        summary.failed += 1;
+      }
+    });
+
+    const returnedIds = new Set(response.data.results.map((item) => item.clientValidationId));
+    pending.forEach((item) => {
+      if (!returnedIds.has(item.id)) {
+        summary.failed += 1;
+      }
+    });
+
+    return summary;
+  }
+
+  async syncPendingLegacy(
     year: string,
     eventId: string | null,
     validate: (codigo: string, zoneId: string | null) => Promise<ApiResponse<TicketValidationResult>>

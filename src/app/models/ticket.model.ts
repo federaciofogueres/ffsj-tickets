@@ -72,6 +72,38 @@ export interface TicketValidationResult {
   };
 }
 
+export interface OfflineManifest {
+  eventId: string | null;
+  year: string;
+  generatedAt: string;
+  checksum: string;
+  tickets: Ticket[];
+  zones: TicketAccessZone[];
+}
+
+export interface OfflineSyncValidation {
+  clientValidationId: string;
+  code: string;
+  zoneId?: string | null;
+  validatedAt?: string | null;
+}
+
+export interface OfflineSyncItemResult {
+  clientValidationId: string;
+  code: string;
+  status: 'synced' | 'conflict' | 'failed';
+  validation: TicketValidationResult;
+}
+
+export interface OfflineSyncResult {
+  deviceId: string | null;
+  attempted: number;
+  synced: number;
+  conflicts: number;
+  failed: number;
+  results: OfflineSyncItemResult[];
+}
+
 export interface AdminStats {
   totalEntradas: number;
   totalActivadas: number;
