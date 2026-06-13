@@ -35,6 +35,41 @@
 
     <article class="panel">
       <h2>Validacion manual</h2>
+      <section class="offline-status" [ngClass]="'offline-status-' + networkMode">
+        <div>
+          <span>Modo</span>
+          <strong>
+            @if (networkMode === 'online') {
+            Online
+            } @else if (networkMode === 'weak') {
+            Cobertura debil
+            } @else {
+            Bajisima cobertura
+            }
+          </strong>
+        </div>
+        <div>
+          <span>Listado local</span>
+          <strong>{{ offlineSummary ? (offlineSummary.total + ' entradas') : 'No preparado' }}</strong>
+        </div>
+        <div>
+          <span>Pendientes</span>
+          <strong>{{ offlineSummary?.pending ?? 0 }}</strong>
+        </div>
+      </section>
+      <div class="offline-actions">
+        <button type="button" (click)="prepareOfflineMode()" [disabled]="offlinePreparing || loading">
+          {{ offlinePreparing ? 'Preparando...' : 'Preparar baja cobertura' }}
+        </button>
+        <button type="button" (click)="syncOfflinePending()" [disabled]="offlineSyncing || loading || !offlineSummary?.pending">
+          {{ offlineSyncing ? 'Sincronizando...' : 'Sincronizar pendientes' }}
+        </button>
+      </div>
+      @if (offlineSummary) {
+      <p class="offline-copy">
+        Listado actualizado: {{ offlineSummary.downloadedAt | date:'short' }}. Validadas localmente: {{ offlineSummary.locallyValidated }}.
+      </p>
+      }
       @if (hasZones) {
       <label>
         <span>Zona de acceso</span>
@@ -139,6 +174,9 @@
       <span class="scan-spinner" aria-hidden="true"></span>
       <h2>Validando entrada</h2>
       <p>{{ code || 'Leyendo codigo QR...' }}</p>
+      @if (validationAttemptMessage) {
+      <strong class="retry-notice">{{ validationAttemptMessage }}</strong>
+      }
       <button type="button" class="loading-close-button" (click)="forceCloseLoading()">Cerrar carga</button>
       <ol class="debug-log debug-log-loading">
         @for (entry of debugEntries; track entry) {

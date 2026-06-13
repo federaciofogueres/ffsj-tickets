@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
@@ -84,6 +84,19 @@ export class TicketsAdminService {
       headers: this.headers,
       params: this.params(options.year, options)
     }).pipe(map((response) => this.normalizeListResponse(response)));
+  }
+
+  async listAllTickets(year: string, eventId?: string | null): Promise<Ticket[]> {
+    const tickets: Ticket[] = [];
+    let cursor: string | null = null;
+
+    do {
+      const response: ApiResponse<PaginatedResponse<Ticket>> = await firstValueFrom(this.listTickets({ year, eventId, limit: 500, cursor }));
+      tickets.push(...response.data.items);
+      cursor = response.data.nextCursor;
+    } while (cursor);
+
+    return tickets;
   }
 
   createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
