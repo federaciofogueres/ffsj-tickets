@@ -4,7 +4,7 @@ import { firstValueFrom, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { environment } from '../../environments/environment';
-import { AdminStats, ApiResponse, OfflineManifest, OfflineSyncResult, OfflineSyncValidation, PaginatedResponse, Ticket, TicketAccessZone, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TicketZoneSummary, TrackingLog } from '../models/ticket.model';
+import { AdminStats, ApiResponse, BackofficeAdminContext, BackofficeAssociationModulePermissions, BackofficeModuleKey, OfflineManifest, OfflineSyncResult, OfflineSyncValidation, PaginatedResponse, Ticket, TicketAccessZone, TicketBatchResult, TicketEmailResult, TicketEvent, TicketValidationResult, TicketZoneSummary, TrackingLog } from '../models/ticket.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -35,8 +35,16 @@ export class TicketsAdminService {
     return params;
   }
 
-  me(): Observable<ApiResponse<{ id: string; label: string; year: string }>> {
-    return this.http.get<ApiResponse<{ id: string; label: string; year: string }>>(`${this.baseUrl}/me`, { headers: this.headers });
+  me(): Observable<ApiResponse<BackofficeAdminContext>> {
+    return this.http.get<ApiResponse<BackofficeAdminContext>>(`${this.baseUrl}/me`, { headers: this.headers });
+  }
+
+  listModulePermissions(): Observable<ApiResponse<{ modules: BackofficeAdminContext['allModules']; permissions: BackofficeAssociationModulePermissions[] }>> {
+    return this.http.get<ApiResponse<{ modules: BackofficeAdminContext['allModules']; permissions: BackofficeAssociationModulePermissions[] }>>(`${this.baseUrl}/module-permissions`, { headers: this.headers });
+  }
+
+  updateModulePermissions(cargoId: string, modules: BackofficeModuleKey[]): Observable<ApiResponse<BackofficeAssociationModulePermissions>> {
+    return this.http.put<ApiResponse<BackofficeAssociationModulePermissions>>(`${this.baseUrl}/module-permissions`, { cargoId, idCargo: cargoId, modules }, { headers: this.headers });
   }
 
   stats(year: string): Observable<ApiResponse<AdminStats>> {
@@ -79,7 +87,7 @@ export class TicketsAdminService {
     return this.http.get<ApiResponse<AdminStats>>(`${this.baseUrl}/stats`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  listTickets(options: { year: string; eventId?: string | null; limit: number; cursor?: string | null; status?: string; search?: string; mode?: 'single' | 'batch' }): Observable<ApiResponse<PaginatedResponse<Ticket>>> {
+  listTickets(options: { year: string; eventId?: string | null; limit: number; cursor?: string | null; status?: string; search?: string; mode?: 'single' | 'batch'; visibility?: 'visible' | 'hidden' | 'all' }): Observable<ApiResponse<PaginatedResponse<Ticket>>> {
     return this.http.get<unknown>(`${this.baseUrl}/tickets`, {
       headers: this.headers,
       params: this.params(options.year, options)
@@ -103,11 +111,11 @@ export class TicketsAdminService {
     return this.http.get<ApiResponse<OfflineManifest>>(`${this.baseUrl}/offline-manifest`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+  createTicket(payload: { codigo: string; activada: boolean; bloqueada: boolean; oculto?: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
     return this.http.post<ApiResponse<Ticket>>(`${this.baseUrl}/tickets`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
+  updateTicket(codigo: string, payload: { activada?: boolean; bloqueada?: boolean; oculto?: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<Ticket>> {
     return this.http.put<ApiResponse<Ticket>>(`${this.baseUrl}/tickets/${encodeURIComponent(codigo)}`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
@@ -119,7 +127,7 @@ export class TicketsAdminService {
     return this.http.delete<ApiResponse<{ batchId: string; deleted: number; validatedTickets: string[] }>>(`${this.baseUrl}/tickets/batch/${encodeURIComponent(batchId)}`, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 
-  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<TicketBatchResult>> {
+  generateTickets(payload: { quantity: number; prefix?: string; fisica: boolean; oculto?: boolean; zoneId?: string | null }, year: string, eventId?: string | null): Observable<ApiResponse<TicketBatchResult>> {
     return this.http.post<ApiResponse<TicketBatchResult>>(`${this.baseUrl}/tickets/generate`, payload, { headers: this.headers, params: this.params(year, { eventId }) });
   }
 

@@ -20,6 +20,7 @@ export interface Ticket {
   usadaAt: string | null;
   bloqueada: boolean;
   fisica: boolean;
+  oculto: boolean;
   createdAt: string;
   validatedAt: string | null;
   batchId: string | null;
@@ -141,6 +142,28 @@ export interface TicketZoneSummary {
   available: number;
   validated: number;
   blocked: number;
+}
+
+export type BackofficeModuleKey = 'tickets' | 'hiddenTickets' | 'validar' | 'tracking' | 'modules';
+
+export interface BackofficeModuleDefinition {
+  key: BackofficeModuleKey;
+  label: string;
+}
+
+export interface BackofficeAdminContext {
+  id: string;
+  cargoIds: string[];
+  label: string;
+  year: string;
+  isSuperAdmin: boolean;
+  allowedModules: BackofficeModuleKey[];
+  allModules: BackofficeModuleDefinition[];
+}
+
+export interface BackofficeAssociationModulePermissions {
+  cargoId: string;
+  modules: BackofficeModuleKey[];
 }
 
 export interface TrackingLog {

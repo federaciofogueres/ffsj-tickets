@@ -9,22 +9,36 @@
     </div>
 
     <div class="section-switch">
+      @if (isModuleEnabled('tickets')) {
       <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'tickets'" (click)="setSection('tickets')">
         <i class="bi bi-ticket-perforated"></i>
         <span>Tickets</span>
       </button>
+      }
+      @if (isModuleEnabled('hiddenTickets')) {
+      <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'hiddenTickets'" (click)="setSection('hiddenTickets')">
+        <i class="bi bi-incognito"></i>
+        <span>Tickets ocultos</span>
+      </button>
+      }
+      @if (isModuleEnabled('validar')) {
       <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'validar'" (click)="setSection('validar')">
         <i class="bi bi-qr-code-scan"></i>
         <span>Validar</span>
       </button>
+      }
+      @if (isModuleEnabled('tracking')) {
       <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'tracking'" (click)="setSection('tracking')">
         <i class="bi bi-activity"></i>
         <span>Tracking</span>
       </button>
-      <button type="button" class="switch-pill muted-pill">
+      }
+      @if (adminContext?.isSuperAdmin) {
+      <button type="button" class="switch-pill" [class.switch-pill-active]="section === 'modules'" (click)="setSection('modules')">
         <i class="bi bi-shield-lock"></i>
         <span>Modulos</span>
       </button>
+      }
     </div>
 
     <div class="sidebar-version">
@@ -567,9 +581,170 @@
       }
     </section>
     }
+    } @else if (section === 'hiddenTickets') {
+    <section class="admin-layout">
+      <article class="panel-card">
+        <p class="panel-kicker">Tickets ocultos</p>
+        <h2>Alta manual oculta</h2>
+        <label class="field">
+          <span>Codigo</span>
+          <input type="text" [(ngModel)]="hiddenTicketForm.codigo" placeholder="OCULTO-0001">
+        </label>
+        @if (hasZones) {
+        <label class="field">
+          <span>Zona de acceso</span>
+          <select [(ngModel)]="hiddenTicketForm.zoneId">
+            @for (zone of zones; track zone.id) {
+            <option [value]="zone.id">{{ zone.nombre }}</option>
+            }
+          </select>
+        </label>
+        }
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="hiddenTicketForm.activada">
+          <span>Crear activado</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="hiddenTicketForm.bloqueada">
+          <span>Crear bloqueado</span>
+        </label>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading" (click)="createHiddenTicket()">Crear ticket oculto</button>
+      </article>
+
+      <article class="panel-card">
+        <p class="panel-kicker">Lote oculto</p>
+        <h2>Generar tickets ocultos</h2>
+        <div class="two-columns">
+          <label class="field">
+            <span>Cantidad</span>
+            <input type="number" [(ngModel)]="hiddenBatchForm.quantity" min="1" max="5000">
+          </label>
+          <label class="field">
+            <span>Prefijo</span>
+            <input type="text" [(ngModel)]="hiddenBatchForm.prefix" placeholder="OCULTO">
+          </label>
+        </div>
+        @if (hasZones) {
+        <label class="field">
+          <span>Zona de acceso</span>
+          <select [(ngModel)]="hiddenBatchForm.zoneId">
+            @for (zone of zones; track zone.id) {
+            <option [value]="zone.id">{{ zone.nombre }}</option>
+            }
+          </select>
+        </label>
+        }
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="hiddenBatchForm.fisica">
+          <span>Entradas fisicas</span>
+        </label>
+        <button type="button" class="secondary-btn compact-action" [disabled]="loading" (click)="generateHiddenBatch()">Generar lote oculto</button>
+      </article>
+    </section>
+
+    <section class="panel-card records-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Lectura restringida</p>
+          <h2>Tickets ocultos registrados</h2>
+        </div>
+        <button type="button" class="ghost-btn" (click)="loadTickets(true)">Refrescar</button>
+      </div>
+
+      <div class="records-toolbar hidden-records-toolbar">
+        <label class="field compact-field">
+          <span>Buscar</span>
+          <input type="search" [(ngModel)]="search" (input)="currentPage = 1; loadTickets(true)" placeholder="Buscar ticket o lote oculto">
+        </label>
+        <label class="field compact-field">
+          <span>Ver</span>
+          <select [(ngModel)]="pageSize" (change)="currentPage = 1">
+            <option [ngValue]="4">4</option>
+            <option [ngValue]="8">8</option>
+            <option [ngValue]="20">20</option>
+          </select>
+        </label>
+      </div>
+
+      <p class="records-summary">
+        @if (listLoading) {
+          Cargando registros...
+        } @else {
+          {{ filteredTickets.length }} tickets ocultos encontrados
+        }
+      </p>
+
+      <div class="records-list">
+        @for (ticket of visibleTickets; track ticket.codigo) {
+        <article class="record-card ticket-record-card" [ngClass]="ticketCardClass(ticket)" [class.record-card-expanded]="expandedTicketCode === ticket.codigo">
+          <button type="button" class="record-summary-button" (click)="toggleTicket(ticket)" [attr.aria-expanded]="expandedTicketCode === ticket.codigo">
+            <span class="record-summary-main">
+              <span class="record-summary-id">{{ ticket.codigo }}</span>
+              <small>{{ ticket.batchId || 'Manual' }}</small>
+            </span>
+            <i class="bi bi-chevron-down record-chevron" aria-hidden="true"></i>
+          </button>
+
+          @if (expandedTicketCode === ticket.codigo) {
+          <div class="record-expanded">
+            <dl class="record-meta">
+              <div><dt>Estado</dt><dd><span class="status-chip" [ngClass]="ticketStatusClass(ticket)">{{ ticketStatusLabel(ticket) }}</span></dd></div>
+              <div><dt>Zona</dt><dd>{{ ticket.zoneName || 'Sin zona' }}</dd></div>
+              <div><dt>Lote</dt><dd>{{ ticket.batchId || 'Manual' }}</dd></div>
+              <div><dt>Creado</dt><dd>{{ ticket.createdAt | date:'short' }}</dd></div>
+              <div><dt>Activado</dt><dd>{{ ticket.activadaAt ? (ticket.activadaAt | date:'short') : 'No' }}</dd></div>
+              <div><dt>Validado</dt><dd>{{ ticket.usadaAt ? (ticket.usadaAt | date:'short') : 'No' }}</dd></div>
+            </dl>
+            <div class="actions-row">
+              <label class="checkbox-row" (click)="$event.stopPropagation()">
+                <input type="checkbox" [(ngModel)]="ticket.activada">
+                <span>Activada</span>
+              </label>
+              <label class="checkbox-row" (click)="$event.stopPropagation()">
+                <input type="checkbox" [(ngModel)]="ticket.bloqueada">
+                <span>Bloqueada</span>
+              </label>
+              @if (hasZones) {
+              <label class="field compact-field ticket-zone-select" (click)="$event.stopPropagation()">
+                <span>Zona</span>
+                <select [(ngModel)]="ticket.zoneId">
+                  <option [ngValue]="null">Sin zona</option>
+                  @for (zone of zones; track zone.id) {
+                  <option [value]="zone.id">{{ zone.nombre }}</option>
+                  }
+                </select>
+              </label>
+              }
+              <button type="button" class="ghost-btn" [disabled]="loading" (click)="$event.stopPropagation(); saveTicket(ticket)">Guardar</button>
+              @if (ticket.batchId) {
+              <button type="button" class="secondary-btn" [disabled]="loading" (click)="$event.stopPropagation(); activateBatch(ticket.batchId)">
+                Activar lote
+              </button>
+              }
+              <button type="button" class="ghost-btn" [disabled]="pdfLoading" (click)="$event.stopPropagation(); downloadPdf(ticket)">PDF</button>
+              <button type="button" class="danger-btn" [disabled]="loading" (click)="$event.stopPropagation(); deleteTicket(ticket)">Eliminar</button>
+            </div>
+          </div>
+          }
+        </article>
+        } @empty {
+        <p class="helper-copy">No hay tickets ocultos para este evento.</p>
+        }
+      </div>
+
+      <div class="records-pagination">
+        <button type="button" class="ghost-btn" [disabled]="currentPage === 1" (click)="previousPage()">Anterior</button>
+        <span>Pagina {{ currentPage }} / {{ totalPages }}</span>
+        <button type="button" class="ghost-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">Siguiente</button>
+      </div>
+
+      @if (cursor) {
+      <button type="button" class="secondary-btn load-more" (click)="loadTickets()">Cargar mas tickets ocultos</button>
+      }
+    </section>
     } @else if (section === 'validar') {
     <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId" [zones]="zones"></app-validar>
-    } @else {
+    } @else if (section === 'tracking') {
     <section class="panel-card records-panel tracking-panel">
       <div class="panel-header">
         <div>
@@ -666,6 +841,49 @@
       @if (trackingCursor) {
       <button type="button" class="secondary-btn load-more" (click)="loadTracking()">Cargar mas eventos</button>
       }
+    </section>
+    } @else {
+    <section class="panel-card modules-panel">
+      <div class="panel-header">
+        <div>
+          <p class="panel-kicker">Modulos</p>
+          <h2>Secciones de administracion</h2>
+        </div>
+        <button type="button" class="ghost-btn" [disabled]="loadingModulePermissions" (click)="loadModulePermissions()">Refrescar</button>
+      </div>
+      <div class="module-editor-header">
+        <label class="field compact-field">
+          <span>ID cargo</span>
+          <input type="text" [(ngModel)]="selectedModuleCargoId" placeholder="12">
+        </label>
+        <button type="button" class="primary-btn compact-action" [disabled]="loading || loadingModulePermissions" (click)="saveModulePermissions()">Guardar permisos</button>
+      </div>
+      @if (modulePermissions.length) {
+      <div class="permission-list">
+        @for (permission of modulePermissions; track permission.cargoId) {
+        <button type="button" class="permission-chip" [class.permission-chip-active]="selectedModuleCargoId === permission.cargoId" (click)="selectModulePermission(permission)">
+          Cargo {{ permission.cargoId }}
+        </button>
+        }
+      </div>
+      } @else if (!loadingModulePermissions) {
+      <p class="helper-copy">Todavia no hay permisos guardados para otros administradores.</p>
+      }
+      <div class="modules-grid">
+        @for (module of moduleOptions; track module.key) {
+        <article class="module-card" [class.module-card-disabled]="!isSelectedPermissionModule(module.key)">
+          <span class="module-icon"><i class="bi" [ngClass]="module.icon"></i></span>
+          <div>
+            <strong>{{ module.label }}</strong>
+            <p class="helper-copy">{{ module.description }}</p>
+          </div>
+          <label class="module-toggle">
+            <input type="checkbox" [ngModel]="isSelectedPermissionModule(module.key)" (ngModelChange)="toggleModule(module.key)">
+            <span>{{ isSelectedPermissionModule(module.key) ? 'Activo' : 'Inactivo' }}</span>
+          </label>
+        </article>
+        }
+      </div>
     </section>
     }
   </main>

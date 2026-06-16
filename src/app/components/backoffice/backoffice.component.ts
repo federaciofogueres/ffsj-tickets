@@ -5,12 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { saveAs } from 'file-saver';
 
-import { AdminStats, Ticket, TicketAccessZone, TicketEvent, TicketZoneSummary, TrackingLog } from '../../models/ticket.model';
+import { AdminStats, BackofficeAdminContext, BackofficeAssociationModulePermissions, BackofficeModuleKey, Ticket, TicketAccessZone, TicketEvent, TicketZoneSummary, TrackingLog } from '../../models/ticket.model';
 import { TicketsAdminService } from '../../services/tickets-admin.service';
 import { ValidarComponent } from '../validar/validar.component';
 
 type Tab = 'generate' | 'tickets' | 'batches' | 'activate' | 'zones';
-type BackofficeSection = 'tickets' | 'validar' | 'tracking';
+type BackofficeSection = 'tickets' | 'hiddenTickets' | 'validar' | 'tracking' | 'modules';
 const ACTIVE_EVENT_STORAGE_KEY = 'ffsj-tickets-active-event-id';
 const DEFAULT_ZONE_COLOR = '#e00616';
 
@@ -77,13 +77,52 @@ export class BackofficeComponent implements OnInit {
   protected batchForm = { quantity: 25, prefix: 'FFSJ', fisica: true, zoneId: '' };
   protected emailForm = { email: '', code: '', batchId: '' };
   protected validationForm = { code: '', zoneId: '' };
+  protected hiddenTicketForm = { codigo: '', activada: true, bloqueada: false, zoneId: '' };
+  protected hiddenBatchForm = { quantity: 10, prefix: 'OCULTO', fisica: false, zoneId: '' };
+  protected adminContext: BackofficeAdminContext | null = null;
+  protected modulePermissions: BackofficeAssociationModulePermissions[] = [];
+  protected selectedModuleCargoId = '';
+  protected selectedPermissionModules: BackofficeModuleKey[] = [];
+  protected loadingModulePermissions = false;
+  protected readonly moduleOptions: Array<{ key: BackofficeModuleKey; label: string; description: string; icon: string }> = [
+    { key: 'tickets', label: 'Tickets', description: 'Gestion, listados, lotes, PDF y zonas de entradas visibles.', icon: 'bi-ticket-perforated' },
+    { key: 'hiddenTickets', label: 'Tickets ocultos', description: 'Generacion y operativa de entradas que no aparecen en listados ni totales normales.', icon: 'bi-incognito' },
+    { key: 'validar', label: 'Validar', description: 'Camara y validacion manual de entradas por codigo o QR.', icon: 'bi-qr-code-scan' },
+    { key: 'tracking', label: 'Tracking', description: 'Auditoria de acciones administrativas y consultas de trazabilidad.', icon: 'bi-activity' }
+  ];
 
   ngOnInit(): void {
     const requestedSection = this.route.snapshot.queryParamMap.get('section');
-    if (requestedSection === 'tracking' || requestedSection === 'validar') {
+    if (requestedSection === 'tracking' || requestedSection === 'validar' || requestedSection === 'hiddenTickets' || requestedSection === 'modules') {
       this.section = requestedSection;
     }
-    this.loadEvents();
+    if (this.section !== 'modules' && !this.isModuleEnabled(this.section)) {
+      this.section = this.firstEnabledSection();
+    }
+    this.loadAdminContext();
+  }
+
+  protected loadAdminContext(): void {
+    this.ticketsAdminService.me().subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.adminContext = data;
+          if (this.section === 'modules' && !data.isSuperAdmin) {
+            this.section = this.firstEnabledSection();
+          }
+          if (this.section !== 'modules' && !this.isModuleEnabled(this.section)) {
+            this.section = this.firstEnabledSection();
+          }
+        });
+        this.loadEvents();
+        if (data.isSuperAdmin) {
+          this.loadModulePermissions();
+        }
+      },
+      error: () => {
+        this.loadEvents();
+      }
+    });
   }
 
   protected refresh(): void {
@@ -98,7 +137,7 @@ export class BackofficeComponent implements OnInit {
     if (this.section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
-    } else if (this.section === 'validar') {
+    } else if (this.section === 'validar' || this.section === 'modules') {
       return;
     } else {
       this.loadTickets(true);
@@ -106,12 +145,26 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected setSection(section: BackofficeSection): void {
+    if (section === 'modules' && !this.adminContext?.isSuperAdmin) {
+      this.setMessage('Solo el superadmin puede administrar modulos.', 'warning');
+      return;
+    }
+    if (section !== 'modules' && !this.isModuleEnabled(section)) {
+      this.setMessage('Modulo desactivado para administracion.', 'warning');
+      return;
+    }
     this.section = section;
     this.message = '';
+    if (section === 'hiddenTickets') {
+      this.tab = 'tickets';
+      this.currentPage = 1;
+      this.expandedTicketCode = null;
+      this.expandedBatchId = null;
+    }
     if (section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
-    } else if (section === 'validar') {
+    } else if (section === 'validar' || section === 'modules') {
       return;
     } else {
       this.loadTickets(true);
@@ -235,7 +288,8 @@ export class BackofficeComponent implements OnInit {
       cursor: this.cursor,
       status: this.status === 'all' ? undefined : this.status,
       search: this.search,
-      mode
+      mode,
+      visibility: this.section === 'hiddenTickets' ? 'hidden' : 'visible'
     }).subscribe({
       next: (response) => {
         this.applyViewUpdate(() => {
@@ -338,7 +392,7 @@ export class BackofficeComponent implements OnInit {
   protected saveTicket(ticket: Ticket): void {
     if (!this.requireActiveEvent()) return;
     this.beginOperation(`Guardando entrada ${ticket.codigo}...`);
-    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada, zoneId: ticket.zoneId ?? null }, this.year, this.activeEventId).subscribe({
+    this.ticketsAdminService.updateTicket(ticket.codigo, { activada: ticket.activada, bloqueada: ticket.bloqueada, oculto: ticket.oculto, zoneId: ticket.zoneId ?? null }, this.year, this.activeEventId).subscribe({
       next: () => {
         this.setMessage('Entrada actualizada.', 'success');
         this.refresh();
@@ -408,6 +462,119 @@ export class BackofficeComponent implements OnInit {
         this.refresh();
       },
       error: (error) => this.handleError(error, 'No se ha podido validar la entrada.')
+    });
+  }
+
+  protected createHiddenTicket(): void {
+    if (!this.requireActiveEvent()) return;
+    if (!this.requireZoneSelection(this.hiddenTicketForm.zoneId)) return;
+    const codigo = this.hiddenTicketForm.codigo.trim().toUpperCase();
+    if (!codigo) {
+      this.setMessage('Indica un codigo.', 'warning');
+      return;
+    }
+
+    this.beginOperation('Creando entrada oculta...');
+    this.ticketsAdminService.createTicket({
+      ...this.hiddenTicketForm,
+      codigo,
+      oculto: true,
+      zoneId: this.normalizedZoneId(this.hiddenTicketForm.zoneId)
+    }, this.year, this.activeEventId).subscribe({
+      next: () => {
+        this.hiddenTicketForm.codigo = '';
+        this.setMessage('Entrada oculta creada.', 'success');
+        this.refresh();
+      },
+      error: (error) => this.handleError(error, 'No se ha podido crear la entrada oculta.')
+    });
+  }
+
+  protected generateHiddenBatch(): void {
+    if (!this.requireActiveEvent()) return;
+    if (!this.requireZoneSelection(this.hiddenBatchForm.zoneId)) return;
+    this.beginOperation(`Generando ${this.hiddenBatchForm.quantity} entradas ocultas...`);
+    this.ticketsAdminService.generateTickets({
+      ...this.hiddenBatchForm,
+      oculto: true,
+      zoneId: this.normalizedZoneId(this.hiddenBatchForm.zoneId)
+    }, this.year, this.activeEventId).subscribe({
+      next: ({ data }) => {
+        this.setMessage(`Lote oculto ${data.batchId} generado con ${data.totalGenerated} entradas.`, 'success');
+        this.refresh();
+      },
+      error: (error) => this.handleError(error, 'No se ha podido generar el lote oculto.')
+    });
+  }
+
+  protected toggleModule(key: BackofficeModuleKey): void {
+    const exists = this.selectedPermissionModules.includes(key);
+    const next = exists ? this.selectedPermissionModules.filter((module) => module !== key) : [...this.selectedPermissionModules, key];
+    if (!next.length) {
+      this.setMessage('Debe quedar al menos un modulo activo.', 'warning');
+      return;
+    }
+    this.selectedPermissionModules = next;
+  }
+
+  protected isModuleEnabled(section: BackofficeModuleKey): boolean {
+    if (!this.adminContext) {
+      return true;
+    }
+    return this.adminContext.allowedModules.includes(section);
+  }
+
+  protected isSelectedPermissionModule(key: BackofficeModuleKey): boolean {
+    return this.selectedPermissionModules.includes(key);
+  }
+
+  protected loadModulePermissions(): void {
+    if (!this.adminContext?.isSuperAdmin) return;
+    this.loadingModulePermissions = true;
+    this.ticketsAdminService.listModulePermissions().subscribe({
+      next: ({ data }) => {
+        this.applyViewUpdate(() => {
+          this.modulePermissions = data.permissions;
+          this.loadingModulePermissions = false;
+          if (!this.selectedModuleCargoId && this.modulePermissions[0]) {
+            this.selectModulePermission(this.modulePermissions[0]);
+          }
+        });
+      },
+      error: (error) => {
+        this.loadingModulePermissions = false;
+        this.handleError(error, 'No se han podido cargar los permisos de modulos.');
+      }
+    });
+  }
+
+  protected selectModulePermission(permission: BackofficeAssociationModulePermissions): void {
+    this.selectedModuleCargoId = permission.cargoId;
+    this.selectedPermissionModules = permission.modules.filter((module): module is BackofficeModuleKey => module !== 'modules');
+  }
+
+  protected saveModulePermissions(): void {
+    const cargoId = this.selectedModuleCargoId.trim();
+    if (!cargoId) {
+      this.setMessage('Indica el ID cargo.', 'warning');
+      return;
+    }
+    if (!this.selectedPermissionModules.length) {
+      this.setMessage('Selecciona al menos un modulo.', 'warning');
+      return;
+    }
+
+    this.beginOperation(`Guardando modulos para cargo ${cargoId}...`);
+    this.ticketsAdminService.updateModulePermissions(cargoId, this.selectedPermissionModules).subscribe({
+      next: ({ data }) => {
+        const existingIndex = this.modulePermissions.findIndex((permission) => permission.cargoId === data.cargoId);
+        this.modulePermissions = existingIndex >= 0
+          ? this.modulePermissions.map((permission, index) => index === existingIndex ? data : permission)
+          : [...this.modulePermissions, data];
+        this.selectModulePermission(data);
+        this.setMessage('Permisos de modulos actualizados.', 'success');
+      },
+      error: (error) => this.handleError(error, 'No se han podido guardar los permisos de modulos.')
     });
   }
 
@@ -855,6 +1022,8 @@ export class BackofficeComponent implements OnInit {
       this.ticketForm.zoneId = '';
       this.batchForm.zoneId = '';
       this.validationForm.zoneId = '';
+      this.hiddenTicketForm.zoneId = '';
+      this.hiddenBatchForm.zoneId = '';
       return;
     }
 
@@ -867,6 +1036,16 @@ export class BackofficeComponent implements OnInit {
     if (!this.zones.some((zone) => zone.id === this.validationForm.zoneId)) {
       this.validationForm.zoneId = defaultZoneId;
     }
+    if (!this.zones.some((zone) => zone.id === this.hiddenTicketForm.zoneId)) {
+      this.hiddenTicketForm.zoneId = defaultZoneId;
+    }
+    if (!this.zones.some((zone) => zone.id === this.hiddenBatchForm.zoneId)) {
+      this.hiddenBatchForm.zoneId = defaultZoneId;
+    }
+  }
+
+  private firstEnabledSection(): BackofficeModuleKey {
+    return this.moduleOptions.find((option) => this.isModuleEnabled(option.key))?.key ?? 'tickets';
   }
 
   private trackingTone(log: TrackingLog): 'success' | 'error' | 'warning' | 'info' | 'neutral' {
