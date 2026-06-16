@@ -18,13 +18,33 @@
       </div>
 
       @if (scannerOpen) {
-      <zxing-scanner
-        [formats]="formats"
-        [autofocusEnabled]="false"
-        (permissionResponse)="onPermissionResponse($event)"
-        (scanError)="onScanError($event)"
-        (scanSuccess)="onScan($event)">
-      </zxing-scanner>
+      <div #scannerRoot class="scanner-viewport">
+        <zxing-scanner
+          [formats]="formats"
+          [device]="selectedDevice"
+          [videoConstraints]="videoConstraints"
+          [autofocusEnabled]="false"
+          [tryHarder]="true"
+          [previewFitMode]="'contain'"
+          (camerasFound)="handleCamerasFound($event)"
+          (deviceChange)="handleDeviceChange($event)"
+          (permissionResponse)="onPermissionResponse($event)"
+          (scanError)="onScanError($event)"
+          (scanSuccess)="onScan($event)">
+        </zxing-scanner>
+        @if (availableDevices.length > 1) {
+        <button class="camera-switch-button" type="button" (click)="switchCamera()" aria-label="Cambiar camara">
+          <i class="bi bi-camera-video"></i>
+        </button>
+        }
+        @if (zoomSupported) {
+        <div class="camera-zoom-controls">
+          <button type="button" (click)="resetZoom()">1x</button>
+          <input type="range" [min]="zoomMin" [max]="zoomMax" [step]="zoomStep" [(ngModel)]="zoomValue"
+            (input)="applyZoom()" aria-label="Zoom de camara">
+        </div>
+        }
+      </div>
       } @else {
       <div class="scanner-placeholder">
         <i class="bi bi-qr-code-scan"></i>

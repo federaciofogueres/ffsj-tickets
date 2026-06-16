@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, Input, NgZone, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { BarcodeFormat } from '@zxing/library';
@@ -23,6 +23,8 @@ const RETRY_PAUSE_MS = 650;
   styleUrl: './validar.component.scss'
 })
 export class ValidarComponent implements OnDestroy, OnInit {
+  @ViewChild('scannerRoot') scannerRoot?: ElementRef<HTMLElement>;
+
   private readonly route = inject(ActivatedRoute);
   private readonly ticketsAdminService = inject(TicketsAdminService);
   private readonly offlineValidationService = inject(OfflineValidationService);
@@ -30,6 +32,11 @@ export class ValidarComponent implements OnDestroy, OnInit {
   private readonly ngZone = inject(NgZone);
 
   protected readonly formats = [BarcodeFormat.QR_CODE];
+  protected readonly videoConstraints: MediaTrackConstraints = {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: 1280 },
+    height: { ideal: 720 }
+  };
   protected year = String(new Date().getFullYear());
   protected code = '';
   protected scannerOpen = false;
@@ -42,6 +49,13 @@ export class ValidarComponent implements OnDestroy, OnInit {
   protected networkMode: 'online' | 'weak' | 'offline' = 'online';
   protected debugOpen = true;
   protected debugEntries: string[] = [];
+  protected availableDevices: MediaDeviceInfo[] = [];
+  protected selectedDevice?: MediaDeviceInfo;
+  protected zoomSupported = false;
+  protected zoomMin = 1;
+  protected zoomMax = 1;
+  protected zoomStep = 0.1;
+  protected zoomValue = 1;
   private lastScanned = '';
   private accessZones: TicketAccessZone[] = [];
   private reopenScannerAfterResult = false;
@@ -276,6 +290,47 @@ export class ValidarComponent implements OnDestroy, OnInit {
     this.addDebug(`camera permission=${hasPermission}`);
   }
 
+  protected handleCamerasFound(devices: MediaDeviceInfo[]): void {
+    this.availableDevices = devices.filter((device) => device.kind === 'videoinput');
+    this.selectedDevice = this.pickPreferredCamera(this.availableDevices);
+    window.setTimeout(() => this.inspectCameraCapabilities(), 350);
+  }
+
+  protected handleDeviceChange(device: MediaDeviceInfo): void {
+    this.selectedDevice = device;
+    window.setTimeout(() => this.inspectCameraCapabilities(), 350);
+  }
+
+  protected switchCamera(): void {
+    if (this.availableDevices.length < 2) {
+      return;
+    }
+
+    const currentIndex = this.availableDevices.findIndex((device) => device.deviceId === this.selectedDevice?.deviceId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % this.availableDevices.length : 0;
+    this.selectedDevice = this.availableDevices[nextIndex];
+  }
+
+  protected resetZoom(): void {
+    if (!this.zoomSupported) {
+      return;
+    }
+
+    this.zoomValue = this.zoomMin;
+    this.applyZoom();
+  }
+
+  protected applyZoom(): void {
+    const track = this.getActiveVideoTrack();
+    if (!track || !this.zoomSupported) {
+      return;
+    }
+
+    void track.applyConstraints({
+      advanced: [{ zoom: this.zoomValue } as MediaTrackConstraintSet]
+    } as MediaTrackConstraints);
+  }
+
   protected get resultTone(): 'success' | 'warning' | 'error' {
     if (this.result?.status === 'valid') {
       return 'success';
@@ -377,6 +432,52 @@ export class ValidarComponent implements OnDestroy, OnInit {
     }
 
     return 'No se ha podido validar la entrada.';
+  }
+
+  private pickPreferredCamera(devices: MediaDeviceInfo[]): MediaDeviceInfo | undefined {
+    if (!devices.length) {
+      return undefined;
+    }
+
+    const rearCameras = devices.filter((device) => /back|rear|environment|trasera|posterior/i.test(device.label));
+    const regularRearCamera = rearCameras.find((device) => !/ultra|wide|tele|macro|zoom/i.test(device.label));
+    return regularRearCamera ?? rearCameras[0] ?? devices[devices.length - 1];
+  }
+
+  private inspectCameraCapabilities(): void {
+    const track = this.getActiveVideoTrack();
+    if (!track) {
+      this.zoomSupported = false;
+      return;
+    }
+
+    const capabilities = track.getCapabilities() as MediaTrackCapabilities & {
+      zoom?: { min?: number; max?: number; step?: number };
+    };
+
+    if (!capabilities.zoom) {
+      this.zoomSupported = false;
+      return;
+    }
+
+    this.zoomSupported = true;
+    this.zoomMin = Number(capabilities.zoom.min ?? 1);
+    this.zoomMax = Number(capabilities.zoom.max ?? this.zoomMin);
+    this.zoomStep = Number(capabilities.zoom.step ?? 0.1);
+
+    const settings = track.getSettings() as MediaTrackSettings & { zoom?: number };
+    this.zoomValue = Math.max(this.zoomMin, Math.min(this.zoomMax, Number(settings.zoom ?? this.zoomMin)));
+
+    if (this.zoomValue > this.zoomMin) {
+      this.zoomValue = this.zoomMin;
+      this.applyZoom();
+    }
+  }
+
+  private getActiveVideoTrack(): MediaStreamTrack | null {
+    const video = this.scannerRoot?.nativeElement.querySelector('video');
+    const stream = video?.srcObject instanceof MediaStream ? video.srcObject : null;
+    return stream?.getVideoTracks()[0] ?? null;
   }
 
   private startValidationWatchdog(runId: number, code: string): void {

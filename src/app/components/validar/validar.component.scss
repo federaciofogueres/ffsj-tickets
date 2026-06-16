@@ -51,11 +51,79 @@ dl div {
   justify-content: space-between;
 }
 
-zxing-scanner {
+.scanner-viewport {
+  background: #111827;
   border-radius: 18px;
-  display: block;
   min-height: 430px;
   overflow: hidden;
+  position: relative;
+}
+
+zxing-scanner {
+  display: block;
+  height: 100%;
+  min-height: 430px;
+  width: 100%;
+}
+
+::ng-deep zxing-scanner video {
+  height: 100% !important;
+  object-fit: contain;
+  width: 100% !important;
+}
+
+.camera-switch-button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 0;
+  border-radius: 50%;
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.18);
+  color: #05070d;
+  display: inline-flex;
+  font-size: 1.15rem;
+  height: 44px;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  width: 44px;
+  z-index: 2;
+}
+
+.camera-zoom-controls {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 999px;
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.18);
+  display: flex;
+  gap: 0.55rem;
+  left: 50%;
+  max-width: min(320px, calc(100% - 2rem));
+  padding: 0.45rem 0.65rem;
+  position: absolute;
+  top: 1rem;
+  transform: translateX(-50%);
+  width: 52%;
+  z-index: 2;
+}
+
+.camera-zoom-controls button {
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.78rem;
+  min-height: 32px;
+  min-width: 42px;
+  padding: 0 0.65rem;
+}
+
+.camera-zoom-controls input {
+  accent-color: #e00000;
+  flex: 1;
+  min-height: auto;
+  min-width: 0;
+  padding: 0;
 }
 
 .scanner-placeholder {
