@@ -48,6 +48,7 @@ export class ValidarComponent implements OnDestroy, OnInit {
   protected validationAttemptMessage = '';
   protected networkMode: 'online' | 'weak' | 'offline' = 'online';
   protected debugOpen = true;
+  protected debugAllowed = false;
   protected debugEntries: string[] = [];
   protected availableDevices: MediaDeviceInfo[] = [];
   protected selectedDevice?: MediaDeviceInfo;
@@ -77,6 +78,11 @@ export class ValidarComponent implements OnDestroy, OnInit {
   @Input() embedded = false;
   @Input() eventId: string | null = sessionStorage.getItem('ffsj-tickets-active-event-id');
   @Input() selectedZoneId = '';
+
+  @Input()
+  set allowDebug(value: boolean | null | undefined) {
+    this.debugAllowed = Boolean(value);
+  }
 
   @Input()
   set zones(value: TicketAccessZone[] | null | undefined) {
@@ -112,6 +118,9 @@ export class ValidarComponent implements OnDestroy, OnInit {
   }
 
   ngOnInit(): void {
+    if (!this.embedded) {
+      this.loadDebugPermission();
+    }
     this.loadZonesIfNeeded();
     this.refreshOfflineSummary();
   }
@@ -282,6 +291,10 @@ export class ValidarComponent implements OnDestroy, OnInit {
     this.debugEntries = [];
   }
 
+  protected get canShowDebug(): boolean {
+    return this.debugAllowed;
+  }
+
   protected onScanError(error: Error): void {
     this.addDebug(`scan error ${this.debugString(this.errorDebugInfo(error))}`);
   }
@@ -384,6 +397,18 @@ export class ValidarComponent implements OnDestroy, OnInit {
   private addDebug(message: string): void {
     const time = new Date().toLocaleTimeString('es-ES', { hour12: false });
     this.debugEntries = [`${time} ${message}`, ...this.debugEntries].slice(0, 30);
+  }
+
+  private loadDebugPermission(): void {
+    this.ticketsAdminService.me().subscribe({
+      next: ({ data }) => {
+        this.debugAllowed = data.isSuperAdmin;
+        this.changeDetectorRef.detectChanges();
+      },
+      error: () => {
+        this.debugAllowed = false;
+      }
+    });
   }
 
   private debugString(value: unknown): string {
@@ -496,7 +521,9 @@ export class ValidarComponent implements OnDestroy, OnInit {
         this.result = {
           status: 'invalid',
           codigo: code,
-          message: 'La validacion no ha devuelto resultado en el tiempo esperado. Revisa el log de debug.',
+          message: this.canShowDebug
+            ? 'La validacion no ha devuelto resultado en el tiempo esperado. Revisa el log de debug.'
+            : 'La validacion no ha devuelto resultado en el tiempo esperado. Intentalo de nuevo.',
           ticket: null
         };
         this.changeDetectorRef.detectChanges();

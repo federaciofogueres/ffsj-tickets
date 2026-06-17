@@ -72,6 +72,8 @@
         <p class="helper-copy">
           @if (activeEvent) {
             {{ activeEvent.fechaEvento || 'Sin fecha' }}{{ activeEvent.horaEvento ? ' ' + activeEvent.horaEvento : '' }} - {{ activeEvent.estado }}
+          } @else if (!canManageEvents) {
+            Selecciona un evento para validar entradas.
           } @else {
             Selecciona o crea un evento para gestionar sus entradas.
           }
@@ -88,17 +90,19 @@
             }
           </select>
         </label>
+        @if (canManageEvents) {
         <button type="button" class="ghost-btn" (click)="eventFormOpen = !eventFormOpen">
           {{ eventFormOpen ? 'Cerrar' : 'Crear evento' }}
         </button>
-        @if (activeEvent && activeEvent.estado !== 'inactivo') {
+        }
+        @if (canManageEvents && activeEvent && activeEvent.estado !== 'inactivo') {
         <button type="button" class="danger-btn" [disabled]="eventLoading || loading" (click)="deactivateEvent()">
           Borrar evento
         </button>
         }
       </div>
 
-      @if (eventFormOpen) {
+      @if (canManageEvents && eventFormOpen) {
       <div class="event-form">
         <label class="field">
           <span>Nombre</span>
@@ -129,6 +133,7 @@
       }
     </section>
 
+    @if (isModuleEnabled('tickets')) {
     <section class="stats-grid">
       <article class="stat-card">
         <span>Total entradas</span>
@@ -156,8 +161,9 @@
         <i class="stat-icon stat-icon-green bi bi-check-circle"></i>
       </article>
     </section>
+    }
 
-    @if (activeEvent && hasZones) {
+    @if (isModuleEnabled('tickets') && activeEvent && hasZones) {
     <section class="panel-card zone-summary-panel">
       <div class="panel-header">
         <div>
@@ -743,7 +749,7 @@
       }
     </section>
     } @else if (section === 'validar') {
-    <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId" [zones]="zones"></app-validar>
+    <app-validar [embedded]="true" [selectedYear]="year" [eventId]="activeEventId" [zones]="zones" [allowDebug]="adminContext?.isSuperAdmin"></app-validar>
     } @else if (section === 'tracking') {
     <section class="panel-card records-panel tracking-panel">
       <div class="panel-header">

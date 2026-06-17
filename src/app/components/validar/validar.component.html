@@ -108,6 +108,7 @@
     </article>
   </section>
 
+  @if (canShowDebug) {
   <section class="debug-panel">
     <div class="debug-header">
       <h2>Debug validacion</h2>
@@ -126,6 +127,7 @@
     </ol>
     }
   </section>
+  }
 
   @if (result) {
   <section class="result-overlay" [ngClass]="'result-overlay-' + resultTone" role="status" aria-live="assertive">
@@ -197,6 +199,7 @@
       @if (validationAttemptMessage) {
       <strong class="retry-notice">{{ validationAttemptMessage }}</strong>
       }
+      @if (canShowDebug) {
       <button type="button" class="loading-close-button" (click)="forceCloseLoading()">Cerrar carga</button>
       <ol class="debug-log debug-log-loading">
         @for (entry of debugEntries; track entry) {
@@ -205,6 +208,7 @@
         <li>Sin eventos todavia.</li>
         }
       </ol>
+      }
     </div>
   </section>
   }

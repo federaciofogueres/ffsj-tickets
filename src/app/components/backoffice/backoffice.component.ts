@@ -131,9 +131,16 @@ export class BackofficeComponent implements OnInit {
       this.loadEvents();
       return;
     }
-    this.loadStats();
-    this.loadZones();
-    this.loadZoneSummaryTickets();
+    if (this.canReadZones) {
+      this.loadZones();
+    }
+    if (this.isModuleEnabled('tickets')) {
+      this.loadStats();
+      this.loadZoneSummaryTickets();
+    } else {
+      this.stats = { totalEntradas: 0, totalActivadas: 0, totalValidadas: 0, totalBloqueadas: 0, totalLotes: 0 };
+      this.zoneSummariesData = [];
+    }
     if (this.section === 'tracking') {
       this.loadTracking(true);
       this.loadTrackingActions();
@@ -519,7 +526,7 @@ export class BackofficeComponent implements OnInit {
 
   protected isModuleEnabled(section: BackofficeModuleKey): boolean {
     if (!this.adminContext) {
-      return true;
+      return false;
     }
     return this.adminContext.allowedModules.includes(section);
   }
@@ -646,6 +653,10 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected createEvent(): void {
+    if (!this.canManageEvents) {
+      this.setMessage('No tienes permiso para gestionar eventos.', 'warning');
+      return;
+    }
     const nombre = this.eventForm.nombre.trim();
     if (!nombre) {
       this.setMessage('Indica el nombre del evento.', 'warning');
@@ -678,6 +689,10 @@ export class BackofficeComponent implements OnInit {
   }
 
   protected deactivateEvent(): void {
+    if (!this.canManageEvents) {
+      this.setMessage('No tienes permiso para gestionar eventos.', 'warning');
+      return;
+    }
     const event = this.activeEvent;
     if (!event) {
       this.setMessage('Selecciona un evento antes de borrarlo.', 'warning');
@@ -794,6 +809,14 @@ export class BackofficeComponent implements OnInit {
 
   protected get hasZones(): boolean {
     return this.zones.length > 0;
+  }
+
+  protected get canManageEvents(): boolean {
+    return Boolean(this.adminContext && this.isModuleEnabled('tickets'));
+  }
+
+  protected get canReadZones(): boolean {
+    return Boolean(this.adminContext && (this.isModuleEnabled('tickets') || this.isModuleEnabled('hiddenTickets') || this.isModuleEnabled('validar')));
   }
 
   protected get zoneSummaries(): TicketZoneSummary[] {
@@ -990,7 +1013,7 @@ export class BackofficeComponent implements OnInit {
     if (this.activeEventId) {
       return true;
     }
-    this.setMessage('Selecciona o crea un evento antes de gestionar entradas.', 'warning');
+    this.setMessage(this.canManageEvents ? 'Selecciona o crea un evento antes de gestionar entradas.' : 'Selecciona un evento antes de validar entradas.', 'warning');
     return false;
   }
 
